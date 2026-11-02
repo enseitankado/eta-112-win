@@ -1,0 +1,11 @@
+# eta-112-win — çalışma zamanı bağımlılıkları
+#
+# Çekirdek araç yalnız Python standart kütüphanesini ve Windows'un kendi DLL'lerini
+# (kernel32, advapi32, iphlpapi; ctypes ile) kullanır — ek paket GEREKTİRMEZ.
+#
+# SPI flash YAZMA/OKUMA işlemleri (bios set/clear, bios read [canlı], wkey set) için:
+chipsec>=1.9.0
+#
+# NOT: CHIPSEC imzalı bir çekirdek sürücüsü yükler. Modern Windows'ta yüklenebilmesi
+# için Secure Boot/HVCI (bellek bütünlüğü) kapalı ya da test imzalama açık olmalıdır.
+# MAC eFuse yazma için Realtek'in ayrı Windows PG aracı gerekir (bkz. README).
