@@ -282,7 +282,58 @@ def _write_flow(prof, edits, pwcheck=None):
         sess.close()
 
 
+def _dryrun_write(prof, edits, pwcheck, dumppath, outpath):
+    """Donanıma DOKUNMADAN: kaynak dump imajını düzenleyip sonucu outpath'e yazar.
+    Yönetici/CHIPSEC gerektirmez; brick riski yoktur. Yazma mantığını doğrulamak
+    ve harici flashlama için düzenlenmiş ROM üretmek içindir. Döner _write_flow ile
+    aynı biçimde {ok,changed,error,verified,out}."""
+    if not dumppath:
+        return {"ok": False, "changed": False,
+                "error": "dry-run için --dump (kaynak imaj) gerekli", "out": None}
+    try:
+        with open(dumppath, "rb") as f:
+            data = f.read()
+    except OSError as e:
+        return {"ok": False, "changed": False, "error": "dump okunamadı: %s" % e, "out": None}
+    sl = prof["slot_len"]
+    new, changes = _edit_image(data, prof, edits)
+    if pwcheck is not None:
+        new, pchanges = _edit_setup_pwcheck(new, prof, pwcheck)
+        changes = changes + pchanges
+    if not changes:
+        return {"ok": True, "changed": False, "error": None, "verified": True, "out": None}
+    try:
+        with open(outpath, "wb") as f:
+            f.write(new)
+    except OSError as e:
+        return {"ok": False, "changed": False, "error": "çıktı yazılamadı: %s" % e, "out": None}
+    # içerik doğrulaması: yeni imajı yeniden tarayıp beklenen değerleri kontrol et
+    verified = len(new) == len(data)
+    if edits:
+        b = codec.resolve_current(
+            codec.pw_filter(codec.nvar_scan(new, prof.get("store_len", 61)), prof),
+            prof["banks"])
+        verified = verified and bool(b) and all(b[off:off + sl] == val for off, val in edits)
+    if pwcheck is not None:
+        sp = codec.nvar_setup_payload(new, prof["active_store_end"],
+                                      prof.get("setup_len", (330, 345)))
+        pco = prof.get("pwcheck_off")
+        verified = verified and bool(sp) and pco is not None and \
+            len(sp) > pco and sp[pco] == pwcheck
+    return {"ok": True, "changed": True, "error": None, "verified": verified, "out": outpath}
+
+
 def _write_result_print(res):
+    if res.get("out"):
+        if not res.get("verified", True):
+            print(f"  {WARN} {Y('Düzenlenmiş imaj yazıldı ama içerik doğrulaması tutmadı:')} {res['out']}")
+        else:
+            print(f"  {OK} {G('Düzenlenmiş imaj yazıldı ve doğrulandı:')} {res['out']}")
+            print(D("  (donanıma dokunulmadı — dry-run). Harici flashlama/inceleme için kullanılabilir."))
+        return
+    if res.get("changed") is False and res.get("error") is None and "out" in res:
+        print(Y("  Kaynak imajda parolalar zaten istenen durumda; dosya yazılmadı."))
+        return
     if res["error"] == "yönetici gerekli":
         print(R("  Bunun için yönetici (Administrator) gerekli."))
     elif res["error"] == "no_live_store":
@@ -374,11 +425,15 @@ def cmd_set(a):
         if not ui.confirm_evet("Yazmak için EVET yazın: "):
             print(Y("  İptal edildi."))
             return 0
-    res = _write_flow(prof, edits, pwcheck=pwcheck)
+    out = getattr(a, "out", None)
+    if out:
+        res = _dryrun_write(prof, edits, pwcheck, getattr(a, "dump", None), out)
+    else:
+        res = _write_flow(prof, edits, pwcheck=pwcheck)
     prot = None if pwcheck is None else ("always" if pwcheck == 2 else "setup")
     if _JSON():
         return emit({"ok": res["ok"], "changed": res["changed"], "error": res["error"],
-                     "verified": res.get("verified"),
+                     "verified": res.get("verified"), "out": res.get("out"),
                      "supervisor": shown.get("supervisor"), "user": shown.get("user"),
                      "protection": prot}, 0 if res["ok"] else 1)
     _write_result_print(res)
@@ -393,14 +448,18 @@ def cmd_clear(a):
     edits = {"all": [(prof["slot_user"], z), (prof["slot_super"], z)],
              "kullanici": [(prof["slot_user"], z)],
              "yonetici": [(prof["slot_super"], z)]}[a.slot]
-    if not _JSON():
+    out = getattr(a, "out", None)
+    if not _JSON() and not out:
         print(f"  {WARN} {Y('BIOS SPI flash değiştirilecek (CHIPSEC). Brick riski; Windows portunda donanım testi YAPILMADI.')}")
         if not ui.confirm_evet("Temizlemek için EVET yazın: "):
             print(Y("  İptal edildi."))
             return 0
-    res = _write_flow(prof, edits)
+    if out:
+        res = _dryrun_write(prof, edits, None, getattr(a, "dump", None), out)
+    else:
+        res = _write_flow(prof, edits)
     if _JSON():
         return emit({"ok": res["ok"], "changed": res["changed"], "error": res["error"],
-                     "verified": res.get("verified")}, 0 if res["ok"] else 1)
+                     "verified": res.get("verified"), "out": res.get("out")}, 0 if res["ok"] else 1)
     _write_result_print(res)
     return 0 if res["ok"] else 1

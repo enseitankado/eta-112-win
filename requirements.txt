@@ -2,10 +2,22 @@
 #
 # Çekirdek araç yalnız Python standart kütüphanesini ve Windows'un kendi DLL'lerini
 # (kernel32, advapi32, iphlpapi; ctypes ile) kullanır — ek paket GEREKTİRMEZ.
+# Yalnız okuma işlevleri (wkey read, mac read, bios read --dump) hiçbir ek paket
+# istemez.
 #
-# SPI flash YAZMA/OKUMA işlemleri (bios set/clear, bios read [canlı], wkey set) için:
-chipsec>=1.9.0
+# SPI flash OKUMA/YAZMA (bios read [canlı], bios set/clear, wkey set) için CHIPSEC:
 #
-# NOT: CHIPSEC imzalı bir çekirdek sürücüsü yükler. Modern Windows'ta yüklenebilmesi
-# için Secure Boot/HVCI (bellek bütünlüğü) kapalı ya da test imzalama açık olmalıdır.
+#   chipsec>=1.11
+#
+# WINDOWS'TA ÖNEMLİ (bu yüzden 'pip install -r requirements.txt' Windows'ta
+# tek başına yetmez — aracın 'kontrol' komutunu kullanın):
+#
+#   1) PyPI'deki chipsec paketi ÖNCEDEN DERLENMİŞ ÇEKİRDEK SÜRÜCÜSÜ İÇERMEZ
+#      (paket içi README.NO_KERNEL_DRIVER bunu söyler). Yani kurulsa bile canlı
+#      SPI, sürücü ayrıca sağlanmadıkça çalışmaz (bkz. README "Sürücü").
+#   2) Düz 'pip install chipsec' kaynaktan 'EfiCompressor' C uzantısını derler ve
+#      Microsoft Visual C++ Build Tools ister. Bu uzantı SPI için GEREKSİZDİR; araç
+#      chipsec'i uzantıyı devre dışı bırakarak (derleyici istemeden) kurar:
+#          python eta-112-win.py kontrol      # chipsec'i kendisi kurar
+#
 # MAC eFuse yazma için Realtek'in ayrı Windows PG aracı gerekir (bkz. README).

@@ -36,9 +36,11 @@ Depoyu elle indirdiyseniz doğrudan da çalıştırabilirsiniz:
 python eta-112-win.py
 ```
 
-Her iki yolda da araç **başlangıçta ön kurulumu denetler** (Python, yönetici, CHIPSEC,
-Secure Boot) ve eksik olan CHIPSEC'i — yönetici haklarıyla — `pip install chipsec` ile
-**otomatik kurmayı önerir**. Denetimi tek başına çalıştırmak için:
+Her iki yolda da araç **başlangıçta ön kurulumu katmanlı denetler** (Python, yönetici,
+CHIPSEC paketi, **SPI çekirdek sürücüsü**, Secure Boot) ve eksik olan CHIPSEC paketini —
+yönetici haklarıyla — **derleyici gerektirmeden otomatik kurmayı önerir** (ayrıntı için
+aşağıdaki [CHIPSEC ve sürücü](#chipsec-ve-sürücü-spi-erişimi) bölümüne bakın). Denetimi
+tek başına çalıştırmak için:
 
 ```bat
 python eta-112-win.py kontrol
@@ -83,12 +85,39 @@ aynıdır (`eta112win/codec.py`, `eta112win/profiles.py`).
 - **Python 3**.
 - Yalnız **okuma** için (Windows anahtarı, MAC): ek bir şey gerekmez — araç yalnız
   standart kütüphane + Windows DLL'lerini (ctypes) kullanır.
-- **SPI flash okuma/yazma** için [CHIPSEC](https://github.com/chipsec/chipsec).
-  Araç bunu başlangıçta denetler ve eksikse `pip install chipsec` ile **kendisi kurar**
-  (yönetici haklarıyla). CHIPSEC imzalı bir çekirdek sürücüsü yükler; yüklenebilmesi için
-  **Secure Boot / HVCI (bellek bütünlüğü) kapalı** ya da test imzalama açık olmalı — araç
-  Secure Boot açıksa uyarır.
+- **SPI flash okuma/yazma** için [CHIPSEC](https://github.com/chipsec/chipsec) +
+  bir **çekirdek sürücüsü**. Bu iki ayrı şeydir; aşağıdaki bölüme bakın. Her durumda
+  sürücünün yüklenebilmesi için **Secure Boot / HVCI (bellek bütünlüğü) kapalı** ya da
+  test imzalama açık olmalı — araç Secure Boot açıksa uyarır (bu tahtalarda kapalıdır).
 - **MAC değiştirme** için Realtek'in Windows PG aracı (ör. `PG8168` / `RtNicpg`).
+
+### CHIPSEC ve sürücü (SPI erişimi)
+
+Windows'ta canlı SPI erişimi **iki katman** ister; aracın `kontrol` komutu ikisini
+ayrı ayrı denetler:
+
+1. **CHIPSEC Python paketi.** PyPI'deki `pip install chipsec` iki nedenle temiz bir
+   tahtada sorun çıkarır: (a) kaynaktan `EfiCompressor` adlı bir C uzantısı derler ve
+   *Microsoft Visual C++ Build Tools* ister; (b) paket **önceden derlenmiş çekirdek
+   sürücüsü içermez**. (a) için araç chipsec'i **EfiCompressor olmadan** kurar
+   (uzantı yalnız UEFI sıkıştırma modülleri içindir, SPI için gereksizdir) — böylece
+   **derleyici gerekmez**. Bunu `python eta-112-win.py kontrol` yapar.
+
+2. **Çekirdek sürücüsü** (asıl kapı). CHIPSEC paketi kurulu olsa da SPI, sürücü
+   yüklenmeden çalışmaz. İki yol vardır:
+   - **A) RWEverything `RwDrv.sys` (önerilir — derleme/.NET gerekmez):**
+     [rweverything.com](https://rweverything.com)'dan aracı indirip `RwDrv.sys`'i
+     chipsec'in `rwe` yardımcısının klasörüne koyun
+     (`…\site-packages\chipsec\helper\rwe\windows_amd64\RwDrv.sys`) ve aracı o
+     yardımcıya yönlendirin:
+     `setx ETA112_CHIPSEC "python -m chipsec_util -i -n --helper rwe"`.
+     RwDrv.sys WHQL-imzalıdır; Secure Boot kapalıyken test imzalama olmadan yüklenir.
+   - **B) chipsec'in kendi sürücüsünü derleyin:** Visual Studio + WDK + **.NET
+     Framework (MSBuild)** ile chipsec kaynağından sürücüyü derleyip imzalayın
+     (chipsec-manual.pdf). .NET Framework **yalnız bu yol için** gereklidir.
+
+Sürücü olmadan da **`bios read --dump` ile çevrimdışı okuma** ve **`bios set/clear …
+--out` ile çevrimdışı dry-run yazma** tam çalışır (aşağıya bakın).
 
 ---
 
@@ -116,10 +145,14 @@ Komut satırı:
 ```bat
 python eta-112-win.py bios info                         :: model / destek
 python eta-112-win.py bios read                         :: parolaları oku (CHIPSEC)
-python eta-112-win.py bios read --dump dump.bin         :: bir ROM dökümünden oku
-python eta-112-win.py bios set --yonetici PAROLA         :: yönetici parolası ayarla
-python eta-112-win.py bios set --kullanici PAROLA        :: kullanıcı parolası ayarla
-python eta-112-win.py bios clear all                    :: tüm BIOS parolalarını sil
+python eta-112-win.py bios read --dump dump.bin         :: bir ROM dökümünden oku (sürücüsüz)
+python eta-112-win.py bios set --yonetici PAROLA         :: yönetici parolası ayarla (canlı)
+python eta-112-win.py bios set --kullanici PAROLA        :: kullanıcı parolası ayarla (canlı)
+python eta-112-win.py bios clear all                    :: tüm BIOS parolalarını sil (canlı)
+
+:: Çevrimdışı dry-run (donanıma DOKUNMAZ; --dump kaynağını düzenleyip --out'a yazar):
+python eta-112-win.py bios set --yonetici PAROLA --dump dump.bin --out yeni.bin
+python eta-112-win.py bios clear all --dump dump.bin --out temiz.bin
 python eta-112-win.py bios calibrate yonetici PAROLA    :: bilinen parolayla keystream doğrula
 
 python eta-112-win.py mac read                          :: MAC(ler) + Faz OUI durumu
@@ -138,6 +171,17 @@ orijinal eta-112 ile aynıdır. Her komutun `-h` yardımı vardır.
   NVRAM bankalarına (veya MSDM için yalnız ilgili sektöre), 4 KiB sektör hizalı yapılır.
 - Değişikliğin etkili olması için **yeniden başlatma** gerekir.
 - `--dump` ile okuma donanıma dokunmaz; yeni bir modeli doğrularken `calibrate` kullanın.
+- `--out` ile dry-run yazma da donanıma dokunmaz: parola oku/yaz mantığını brick riski
+  olmadan geliştirmek/doğrulamak ve harici flashlama için düzenlenmiş ROM üretmek içindir.
+
+### Geliştirme ve testler
+
+Parola oku/yaz çözümleme mantığı, donanım gerektirmeyen bir regresyon testiyle
+doğrulanır (sentetik bir AMI NVAR imajında oku → yaz → yeniden oku → temizle):
+
+```bat
+python tests\test_bios_roundtrip.py
+```
 
 ---
 

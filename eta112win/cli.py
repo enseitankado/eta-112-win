@@ -48,11 +48,14 @@ def bios_main(argv):
         print("  bios clear <all|yonetici|kullanici>")
         print("  bios calibrate <yonetici|kullanici> <PAROLA>")
         print(D("  --dump DOSYA: canlı flash yerine bir ROM dökümünden oku (yazma yok)"))
+        print(D("  --out DOSYA : (set/clear) donanıma YAZMADAN düzenlenmiş imajı dosyaya"))
+        print(D("               yaz — dry-run; --dump ile birlikte kullanılır, brick riski yok"))
         print(D("  --json      : makine-okur çıktı"))
         return 0
     cmd = args[0] if args else "read"
     rest = args[1:]
     dump, rest = _opt(rest, "--dump")
+    out, rest = _opt(rest, "--out")
     if cmd in ("info",):
         return bios.cmd_info(_A()) or 0
     if cmd in ("read", "oku"):
@@ -69,12 +72,13 @@ def bios_main(argv):
         kul, rest = _opt(rest, "--kullanici")
         kor, rest = _opt(rest, "--koruma")
         a = _A(); a.yonetici = yon; a.kullanici = kul; a.koruma = kor
+        a.dump = dump; a.out = out
         return bios.cmd_set(a) or 0
     if cmd in ("clear", "temizle"):
         if not rest or rest[0] not in ("all", "yonetici", "kullanici"):
             return emit({"ok": False, "error": "slot gerekli"}, 1) if ui.JSON else \
                 (print(R("  Kullanım: bios clear <all|yonetici|kullanici>")) or 1)
-        a = _A(); a.slot = rest[0]
+        a = _A(); a.slot = rest[0]; a.dump = dump; a.out = out
         return bios.cmd_clear(a) or 0
     ui.die("Bilinmeyen bios komutu: %s   (read|set|clear|info|calibrate)" % cmd)
 
@@ -200,11 +204,14 @@ def _bios_eeprom_menu():
 def kontrol_main(argv):
     args = _pop_json(list(argv))
     if ui.JSON:
-        return emit({"ok": True, **preflight.status()})
-    ok = preflight.report(flash_needed=False)
-    if preflight.admin() and not preflight.chipsec_runnable() and ui.is_admin():
+        # JSON (otomasyon) kipinde sürücü yüklemeyiz (yan etkisiz, hızlı).
+        return emit({"ok": True, **preflight.status(probe_spi=False)})
+    # Etkileşimli denetim: chipsec kuruluysa SPI'yi gerçekten sına (sürücüyü yükler).
+    probe = preflight.admin() and preflight.chipsec_util_ok()
+    ok = preflight.report(flash_needed=False, probe_spi=probe)
+    if preflight.admin() and not preflight.chipsec_util_ok():
         print()
-        cok, msg = preflight.ensure_chipsec(interactive=True, auto=False)
+        cok, msg = preflight.ensure_chipsec(interactive=True, auto=False, need_spi=False)
         print(f"  {ui.OK if cok else ui.WARN} {msg}")
     return 0 if ok else 1
 

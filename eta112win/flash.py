@@ -39,17 +39,59 @@ def _chipsec_cmd():
 
 
 def available():
-    """CHIPSEC çağrılabiliyor mu (sürücü yüklenebiliyor mu) kabaca sına."""
+    """chipsec_util ÇAĞRILABİLİYOR mu (paket + giriş noktası yerinde mi) kabaca sına.
+    DİKKAT: bu, çekirdek sürücüsünün yüklendiği anlamına gelmez — onun için
+    spi_probe() kullanın."""
     try:
         r = subprocess.run(_chipsec_cmd() + ["--help"],
-                           capture_output=True, text=True, timeout=60)
-        return r.returncode == 0 or "chipsec" in (r.stdout + r.stderr).lower()
+                           capture_output=True, text=True, timeout=90)
     except Exception:
         return False
+    out = (r.stdout or "") + (r.stderr or "")
+    low = out.lower()
+    # chipsec_util çalıştıysa banner/usage ya da chipsec'e özgü import logları görünür
+    return (r.returncode == 0 or "chipsec" in low or "usage" in low
+            or "util_commands" in low)
 
 
 def _run(args, timeout=600):
     return subprocess.run(_chipsec_cmd() + args, capture_output=True, text=True, timeout=timeout)
+
+
+def _parse_bios_region(txt):
+    """CHIPSEC 'spi info' çıktısından BIOS bölgesinin (base, limit) ikilisini çıkarır.
+    Tablo biçimi sürüme göre 2 ya da 3 sütun olabilir:
+        '1 BIOS (FREG1) | 7FFF0500 | 00500000 | 00FFFFFF'  -> base/limit SON iki grup
+        'BIOS            00500000   00FFFFFF'                -> base/limit iki grup
+    Bu yüzden satırdaki SON iki 8-haneli hex, base ve limit olarak alınır
+    (eski sürüm yanlışlıkla FREG register değerini taban sanıyordu)."""
+    for ln in txt.splitlines():
+        if not re.search(r"\bBIOS\b", ln) or "Descriptor" in ln:
+            continue
+        hexes = re.findall(r"[0-9A-Fa-f]{8}", ln)
+        if len(hexes) >= 2:
+            base = int(hexes[-2], 16)
+            limit = int(hexes[-1], 16)
+            if limit >= base and limit > 0:
+                return base, limit
+    return None
+
+
+def spi_probe():
+    """Çekirdek sürücüsünü yükleyip 'spi info' ile flash descriptor okumayı dener.
+    Salt-okunur bir sorgudur (flash'a yazmaz). Döner (ok: bool, detay: str)."""
+    try:
+        r = _run(["spi", "info"], timeout=150)
+    except Exception as e:
+        return False, "chipsec çağrılamadı: %s" % e
+    txt = (r.stdout or "") + (r.stderr or "")
+    reg = _parse_bios_region(txt)
+    if reg is not None:
+        return True, "BIOS bölgesi 0x%X-0x%X" % (reg[0], reg[1])
+    if r.returncode == 0 and "flash region" in txt.lower():
+        return True, "descriptor okundu"
+    tail = "; ".join([l.strip() for l in txt.strip().splitlines() if l.strip()][-2:])
+    return False, (tail or "SPI descriptor okunamadı (sürücü yüklenemedi?)")
 
 
 class FlashError(Exception):
@@ -88,13 +130,8 @@ class FlashSession:
             return 0
         r = _run(["spi", "info"])
         txt = (r.stdout or "") + (r.stderr or "")
-        base = None
-        for ln in txt.splitlines():
-            if re.search(r"\bBIOS\b", ln) and "Descriptor" not in ln:
-                hexes = re.findall(r"([0-9A-Fa-f]{6,8})", ln)
-                if len(hexes) >= 2:
-                    base = int(hexes[0], 16)
-                    break
+        reg = _parse_bios_region(txt)
+        base = reg[0] if reg else None
         if base is None:
             # descriptor okunamadıysa: tipik olarak BIOS bölgesi çipin üst kısmıdır;
             # banka üst sınırını çip sonuna hizala (son çare, riskli -> doğrulama yakalar).
