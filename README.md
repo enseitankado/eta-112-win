@@ -19,6 +19,35 @@ disk silinse de kalıcıdır ve yalnızca **desteklenen modellerde** çalışır
 
 ---
 
+## Çalıştırma
+
+Kurulum gerektirmez. **Yönetici** bir PowerShell açıp aşağıdaki tek satırı yapıştırın;
+betik yönetici değilse kendini yükseltir, Python yoksa kurar, depoyu indirip menüyü açar:
+
+```powershell
+irm https://raw.githubusercontent.com/enseitankado/eta-112-win/main/baslat.ps1 | iex
+```
+
+(eta-112'nin `curl -fsSL .../baslat.sh | sudo bash` yönteminin Windows karşılığıdır.)
+
+Depoyu elle indirdiyseniz doğrudan da çalıştırabilirsiniz:
+
+```bat
+python eta-112-win.py
+```
+
+Her iki yolda da araç **başlangıçta ön kurulumu denetler** (Python, yönetici, CHIPSEC,
+Secure Boot) ve eksik olan CHIPSEC'i — yönetici haklarıyla — `pip install chipsec` ile
+**otomatik kurmayı önerir**. Denetimi tek başına çalıştırmak için:
+
+```bat
+python eta-112-win.py kontrol
+```
+
+Açılan menüden ok tuşlarıyla gezinip Enter ile seçim yapılır (1–9 doğrudan, Esc geri).
+
+---
+
 ## Neden ayrı bir port?
 
 Orijinal eta-112 Linux (canlı USB / çalışan sistem) içindir ve donanıma şu yollarla
@@ -54,9 +83,11 @@ aynıdır (`eta112win/codec.py`, `eta112win/profiles.py`).
 - **Python 3**.
 - Yalnız **okuma** için (Windows anahtarı, MAC): ek bir şey gerekmez — araç yalnız
   standart kütüphane + Windows DLL'lerini (ctypes) kullanır.
-- **SPI flash okuma/yazma** için [CHIPSEC](https://github.com/chipsec/chipsec):
-  `pip install chipsec`. CHIPSEC imzalı bir çekirdek sürücüsü yükler; yüklenebilmesi
-  için **Secure Boot / HVCI (bellek bütünlüğü) kapalı** ya da test imzalama açık olmalı.
+- **SPI flash okuma/yazma** için [CHIPSEC](https://github.com/chipsec/chipsec).
+  Araç bunu başlangıçta denetler ve eksikse `pip install chipsec` ile **kendisi kurar**
+  (yönetici haklarıyla). CHIPSEC imzalı bir çekirdek sürücüsü yükler; yüklenebilmesi için
+  **Secure Boot / HVCI (bellek bütünlüğü) kapalı** ya da test imzalama açık olmalı — araç
+  Secure Boot açıksa uyarır.
 - **MAC değiştirme** için Realtek'in Windows PG aracı (ör. `PG8168` / `RtNicpg`).
 
 ---

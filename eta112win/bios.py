@@ -55,9 +55,10 @@ def load_source(prof, dumppath):
         return (*codec.scan(data, prof), "dump")
     if not ui.is_admin():
         return None, None, "Bu işlem için yönetici (Administrator) gerekli."
-    if not flash.available():
-        return None, None, ("CHIPSEC bulunamadı — flash okuma için gerekli. "
-                            "Kurulum: pip install chipsec (imzalı sürücü + Test Mode/Secure Boot kapalı).")
+    from . import preflight
+    cok, cmsg = preflight.ensure_chipsec(interactive=not ui.JSON)
+    if not cok:
+        return None, None, cmsg
     sess = flash.FlashSession(prof)
     try:
         data = sess.read_region()
@@ -235,8 +236,10 @@ def _write_flow(prof, edits, pwcheck=None):
     """Oku + düzenle + yaz -> geri-oku doğrula. Döner {ok,changed,error,verified}."""
     if not ui.is_admin():
         return {"ok": False, "changed": False, "error": "yönetici gerekli"}
-    if not flash.available():
-        return {"ok": False, "changed": False, "error": "CHIPSEC yok (SPI yazma için gerekli)"}
+    from . import preflight
+    cok, cmsg = preflight.ensure_chipsec(interactive=not ui.JSON)
+    if not cok:
+        return {"ok": False, "changed": False, "error": cmsg}
     sl = prof["slot_len"]
     sess = flash.FlashSession(prof)
     try:

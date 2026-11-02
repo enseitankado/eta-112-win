@@ -76,9 +76,10 @@ def cmd_wkey_set(a):
             return emit({"ok": False, "error": reason}, 1)
         print(f"  {ERR} {R('Geçersiz anahtar')}: {Y(reason)}")
         return 1
-    if not flash.available():
-        return emit({"ok": False, "error": "CHIPSEC yok"}, 1) if _JSON() else \
-            (print(R("  CHIPSEC bulunamadı — MSDM yazma için gerekli.")) or 1)
+    from . import preflight
+    cok, cmsg = preflight.ensure_chipsec(interactive=not _JSON())
+    if not cok:
+        return emit({"ok": False, "error": cmsg}, 1) if _JSON() else (print(R("  " + cmsg)) or 1)
     sess = flash.FlashSession(prof)
     try:
         try:

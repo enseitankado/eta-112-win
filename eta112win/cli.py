@@ -13,7 +13,7 @@ import sys
 
 from . import ui
 from .ui import (B, R, G, Y, Cy, D, emit)
-from . import bios, mac, wkey
+from . import bios, mac, wkey, preflight
 from .profiles import PROFILES
 
 
@@ -142,6 +142,7 @@ def usage():
     print("  " + D("eta-112-win.py ") + G("bios") + " " + D("<komut>") + "       " + D("→ BIOS parolası (read·set·clear·info·calibrate)"))
     print("  " + D("eta-112-win.py ") + G("mac") + " " + D("<komut>") + "        " + D("→ ethernet MAC (read·check·set)"))
     print("  " + D("eta-112-win.py ") + G("wkey") + " " + D("<komut>") + "       " + D("→ Windows ürün anahtarı (read·set)"))
+    print("  " + D("eta-112-win.py ") + G("kontrol") + "              " + D("→ ön kurulum denetimi + CHIPSEC otomatik kurulum"))
     print("  " + D("her komut için ayrıntı: ") + G("eta-112-win.py <komut> -h"))
     print(rule)
     print("  " + Y("Yazma işlemleri (bios set/clear, wkey set) CHIPSEC gerektirir ve"))
@@ -196,9 +197,23 @@ def _bios_eeprom_menu():
     ], yol=["ETA-112-WIN", "BIOS EEPROM"])
 
 
+def kontrol_main(argv):
+    args = _pop_json(list(argv))
+    if ui.JSON:
+        return emit({"ok": True, **preflight.status()})
+    ok = preflight.report(flash_needed=False)
+    if preflight.admin() and not preflight.chipsec_runnable() and ui.is_admin():
+        print()
+        cok, msg = preflight.ensure_chipsec(interactive=True, auto=False)
+        print(f"  {ui.OK if cok else ui.WARN} {msg}")
+    return 0 if ok else 1
+
+
 def menu():
+    preflight.startup(auto_install=True, interactive=True)
     return ui.menu_loop("ETA-112-WIN", [
         ("BIOS EEPROM", "BIOS parolası · MAC · Windows anahtarı", _bios_eeprom_menu),
+        ("Ön kurulum denetimi", "Python · CHIPSEC · Secure Boot; eksikse kur", lambda: kontrol_main([])),
         ("Çıkış", "", None),
     ], yol=["ETA-112-WIN"], ana=True)
 
@@ -217,6 +232,8 @@ def main(argv=None):
         return mac_main(argv[1:]) or 0
     if argv and argv[0] in ("wkey", "windows", "winkey", "seri"):
         return wkey_main(argv[1:]) or 0
+    if argv and argv[0] in ("kontrol", "doctor", "onkurulum", "check-deps"):
+        return kontrol_main(argv[1:]) or 0
     if argv:
         ui.die("Bilinmeyen komut: %s   ('eta-112-win.py --help')" % argv[0])
     return menu()
