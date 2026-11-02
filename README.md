@@ -108,10 +108,14 @@ ayrı ayrı denetler:
    (1.11+) Windows yardımcısı **yalnızca `windowshelper`**'dır ve chipsec'in kendi
    sürücüsünü (`chipsec_hlpr.sys`) ister. Bu sürücü hazır gelmez; şöyle sağlanır:
 
-   - **Sürücüyü derleyin ve yükleyin:** Visual Studio + WDK + **.NET Framework
-     (MSBuild)** ile chipsec kaynağından `chipsec_hlpr.sys`'i derleyin
-     (`chipsec-manual.pdf`). Derlenen sürücü WHQL-imzalı olmadığından Windows 10/11'de
-     yüklenebilmesi için **test imzalama açık olmalıdır**:
+   - **Otomatik:** Yönetici PowerShell'de `tools\surucu-kur.ps1` çalıştırın. Script
+     önkoşulları denetler, chipsec kaynağından `chipsec_hlpr.sys`'i WDK ile derler,
+     bir test sertifikasıyla imzalar, yerine kopyalar ve test imzalamayı açar; geriye
+     yalnız **yeniden başlatma** + `python eta-112-win.py bios read` kalır.
+     (Visual Studio C++ Build Tools + WDK kurulu olmalı; script yoksa tam komutu verir.)
+   - **Elle:** Visual Studio + WDK + **.NET Framework (MSBuild)** ile chipsec kaynağından
+     `chipsec_hlpr.sys`'i derleyin (`chipsec-manual.pdf`). Derlenen sürücü WHQL-imzalı
+     olmadığından Windows 10/11'de yüklenebilmesi için **test imzalama açık olmalıdır**:
      `bcdedit /set testsigning on` çalıştırıp **yeniden başlatın** (Secure Boot zaten
      kapalı olmalı). .NET Framework **yalnızca bu derleme yolu için** gereklidir.
 
