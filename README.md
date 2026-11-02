@@ -103,21 +103,25 @@ ayrı ayrı denetler:
    (uzantı yalnız UEFI sıkıştırma modülleri içindir, SPI için gereksizdir) — böylece
    **derleyici gerekmez**. Bunu `python eta-112-win.py kontrol` yapar.
 
-2. **Çekirdek sürücüsü** (asıl kapı). CHIPSEC paketi kurulu olsa da SPI, sürücü
-   yüklenmeden çalışmaz. İki yol vardır:
-   - **A) RWEverything `RwDrv.sys` (önerilir — derleme/.NET gerekmez):**
-     [rweverything.com](https://rweverything.com)'dan aracı indirip `RwDrv.sys`'i
-     chipsec'in `rwe` yardımcısının klasörüne koyun
-     (`…\site-packages\chipsec\helper\rwe\windows_amd64\RwDrv.sys`) ve aracı o
-     yardımcıya yönlendirin:
-     `setx ETA112_CHIPSEC "python -m chipsec_util -i -n --helper rwe"`.
-     RwDrv.sys WHQL-imzalıdır; Secure Boot kapalıyken test imzalama olmadan yüklenir.
-   - **B) chipsec'in kendi sürücüsünü derleyin:** Visual Studio + WDK + **.NET
-     Framework (MSBuild)** ile chipsec kaynağından sürücüyü derleyip imzalayın
-     (chipsec-manual.pdf). .NET Framework **yalnız bu yol için** gereklidir.
+2. **Çekirdek sürücüsü** (asıl kapı). CHIPSEC paketi kurulu olsa da SPI, bir çekirdek
+   sürücüsü yüklenmeden çalışmaz (`CHIPSEC Windows Driver Not Found`). Güncel chipsec'in
+   (1.11+) Windows yardımcısı **yalnızca `windowshelper`**'dır ve chipsec'in kendi
+   sürücüsünü (`chipsec_hlpr.sys`) ister. Bu sürücü hazır gelmez; şöyle sağlanır:
+
+   - **Sürücüyü derleyin ve yükleyin:** Visual Studio + WDK + **.NET Framework
+     (MSBuild)** ile chipsec kaynağından `chipsec_hlpr.sys`'i derleyin
+     (`chipsec-manual.pdf`). Derlenen sürücü WHQL-imzalı olmadığından Windows 10/11'de
+     yüklenebilmesi için **test imzalama açık olmalıdır**:
+     `bcdedit /set testsigning on` çalıştırıp **yeniden başlatın** (Secure Boot zaten
+     kapalı olmalı). .NET Framework **yalnızca bu derleme yolu için** gereklidir.
+
+   > Not: Eski chipsec'teki RWEverything (`rwe`) yardımcısı — imzalı `RwDrv.sys` ile
+   > reboot'suz yüklenen yol — **chipsec 1.9'da kaldırıldı** ve rwe'li son sürüm
+   > (1.8) modern Python'da (3.12) çalışmaz. Bu yüzden güncel kurulumda geçerli değildir.
 
 Sürücü olmadan da **`bios read --dump` ile çevrimdışı okuma** ve **`bios set/clear …
---out` ile çevrimdışı dry-run yazma** tam çalışır (aşağıya bakın).
+--out` ile çevrimdışı dry-run yazma** tam çalışır (aşağıya bakın) — geliştirme ve
+doğrulama bu yolla brick riski olmadan yapılır.
 
 ---
 

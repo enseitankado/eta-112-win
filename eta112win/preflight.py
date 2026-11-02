@@ -309,18 +309,17 @@ def report(flash_needed=False, probe_spi=False):
 
 
 def _driver_help():
-    """SPI sürücüsünü sağlamak için somut yönlendirme."""
-    print(D("\n  SPI (BIOS flash) erişimi için çekirdek sürücüsü gerekir. İki yol:"))
-    print("  " + B("A) RWEverything sürücüsü (önerilir — derleme/.NET gerekmez):"))
-    print(D("     1. https://rweverything.com adresinden Read & Write Utility'yi indirin,"))
-    print(D("        içinden RwDrv.sys dosyasını çıkarın."))
-    print(D("     2. RwDrv.sys'i chipsec'in rwe klasörüne koyun, ör.:"))
-    print(D("        <python>\\Lib\\site-packages\\chipsec\\helper\\rwe\\windows_amd64\\RwDrv.sys"))
-    print(D("     3. chipsec'i rwe yardımcısıyla çağırın (araç ETA112_CHIPSEC ile ezilebilir):"))
-    print(D('        setx ETA112_CHIPSEC "python -m chipsec_util -i -n --helper rwe"'))
-    print("  " + B("B) chipsec'in kendi sürücüsünü derleyin:"))
-    print(D("     Visual Studio + WDK + .NET Framework (MSBuild) ile chipsec kaynağından"))
-    print(D("     sürücüyü derleyip imzalayın (chipsec-manual.pdf). Secure Boot kapalı olmalı."))
+    """SPI sürücüsünü sağlamak için somut yönlendirme (güncel chipsec gerçeği)."""
+    print(D("\n  SPI (BIOS flash) erişimi için chipsec'in kendi çekirdek sürücüsü gerekir"))
+    print(D("  (güncel chipsec'te Windows yardımcısı yalnız 'windowshelper'dır):"))
+    print("  " + B("  chipsec_hlpr.sys'i derleyin ve yükleyin:"))
+    print(D("   1. Visual Studio + WDK + .NET Framework (MSBuild) ile chipsec kaynağından"))
+    print(D("      sürücüyü derleyin (chipsec-manual.pdf)."))
+    print(D("   2. Sürücü WHQL-imzalı olmadığından test imzalamayı açıp yeniden başlatın:"))
+    print(D("      bcdedit /set testsigning on   (Secure Boot kapalı kalmalı)"))
+    print(D("  Not: eski 'rwe' (RwDrv.sys) yolu chipsec 1.9'da kaldırıldı; rwe'li son sürüm"))
+    print(D("       modern Python'da çalışmadığı için güncel kurulumda kullanılamaz."))
+    print(D("  Sürücüsüz: 'bios read --dump' ve 'bios set/clear --dump --out' tam çalışır."))
 
 
 # ===================== otomatik kurulum =====================
