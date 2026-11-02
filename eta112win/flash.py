@@ -18,6 +18,7 @@ zaman geri-okuma ile doğrulanır ve yalnız banka aralığına, 4 KiB sektör h
 
 import os
 import re
+import sys
 import tempfile
 import subprocess
 
@@ -25,17 +26,17 @@ SECTOR = 0x1000  # SPI erase sektörü (4 KiB)
 
 
 def _chipsec_cmd():
-    """chipsec_util'i çalıştıracak komut öneki. ETA112_CHIPSEC ile ezilebilir."""
+    """chipsec_util'i çalıştıracak komut öneki. ETA112_CHIPSEC ile ezilebilir.
+
+    Varsayılan olarak ARACI ÇALIŞTIRAN yorumlayıcıyı (sys.executable) kullanır:
+    chipsec paketi bu yorumlayıcının ortamına kurulduğu için 'python -m chipsec_util'
+    daima doğru Python'u bulur. (Sabit "python" kullanmak, PATH'te WindowsApps shim
+    gibi başka bir Python varsa 'No module named chipsec_util' hatasına yol açıyordu.)"""
     env = os.environ.get("ETA112_CHIPSEC")
     if env:
         return env.split()
-    from shutil import which
-    if which("chipsec_util"):
-        return ["chipsec_util"]
-    if which("chipsec_util.exe"):
-        return ["chipsec_util.exe"]
-    # modül olarak
-    return [os.environ.get("ETA112_PYTHON", "python"), "-m", "chipsec_util"]
+    py = os.environ.get("ETA112_PYTHON") or sys.executable or "python"
+    return [py, "-m", "chipsec_util"]
 
 
 def available():
