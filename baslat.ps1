@@ -1,4 +1,4 @@
-﻿# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-or-later
 # eta-112-win baslatici — eta-112'nin baslat.sh'inin Windows karsiligi.
 # Copyright (C) 2026 Ozgur Koca <https://ozgurkoca.com>
 #
