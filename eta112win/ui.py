@@ -7,6 +7,14 @@ Windows ok-tuşlu menü (msvcrt). JSON (makine) kipi renkleri ve etkileşimi kap
 import sys
 import ctypes
 
+# Çıktıyı UTF-8'e sabitle: ✓/emoji/Türkçe karakterler, çıktı dosyaya/pipe'a
+# yönlendirildiğinde (Windows'ta cp1254) 'UnicodeEncodeError' ile çökmesin.
+for _s in ("stdout", "stderr"):
+    try:
+        getattr(sys, _s).reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # ---- JSON (makine) kipi: cli tarafından ayarlanır ----
 JSON = False
 
