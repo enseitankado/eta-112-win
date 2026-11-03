@@ -143,10 +143,16 @@ class FlashSession:
 
     # ---- yüksek seviye ----
     def read_region(self):
-        """BIOS bölgesinin baytlarını döner (PROFILES ofsetleriyle uyumlu)."""
+        """TAM SPI çipini (MUTLAK ofsetlerle) döner.
+
+        PROFILES'teki banka/slot ofsetleri üst proje eta-112 (Linux/flashrom) ile
+        BİREBİR aynıdır ve TAM ÇİP mutlak ofsetleridir (ör. 14MB57 bankaları
+        0x400000+). Bu yüzden bölgeyi BIOS tabanından KIRPMAYIZ: kırpmak tüm
+        ofsetleri 'base' kadar kaydırır, hiçbir giriş bankalara düşmez ve
+        resolve_current None döner — geçerli parola 'güncel' yerine 'önceki'
+        olarak görünür. (Yazarken mutlak ofsete yazılır; bkz. _flush.)"""
         self._dump_full()
-        base = self._bios_base()
-        return self._dump[base:] if base else self._dump
+        return self._dump
 
     def write_region(self, new_region):
         """BIOS parola yazımı: değişiklikler banka aralığında olmalı."""
@@ -169,8 +175,8 @@ class FlashSession:
             banks = self.prof["banks"]
             if any(not any(lo <= x < hi for (lo, hi) in banks) for x in diffs):
                 return False, "korumalı bölge dışına yazma engellendi"
-        base = self._bios_base()
-        # değişen bölgeyi sektör hizalı tek span olarak yaz
+        # değişen bölgeyi sektör hizalı tek span olarak yaz. read_region TAM çipi
+        # döndürdüğü için lo/hi zaten MUTLAK flash ofsetleridir (base eklenmez).
         lo = (min(diffs) // SECTOR) * SECTOR
         hi = ((max(diffs) // SECTOR) + 1) * SECTOR
         payload = new_region[lo:hi]
@@ -179,7 +185,7 @@ class FlashSession:
         try:
             with open(path, "wb") as f:
                 f.write(payload)
-            abs_addr = base + lo
+            abs_addr = lo
             r = _run(["spi", "write", "0x%X" % abs_addr, path])
             out = (r.stdout or "") + (r.stderr or "")
             if r.returncode != 0 or "error" in out.lower() or "fail" in out.lower():
