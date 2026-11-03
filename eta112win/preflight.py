@@ -394,6 +394,25 @@ def ensure_chipsec(interactive=True, auto=False, need_spi=True):
     if spi_ok:
         return True, "CHIPSEC SPI hazır (" + detail + ")"
 
+    # 2a) Başarısızlık chipsec_util'in HİÇ çalışmamasından mı (kurulum bozuk/yanlış
+    # modül) kaynaklanıyor? Öyleyse bu bir SÜRÜCÜ sorunu değildir — kullanıcıyı
+    # derlemeye yönlendirmek yanlış olur; pinli bundle'dan BİR KEZ yeniden kurup
+    # tekrar dene (kendini onar).
+    if (detail and detail.startswith("CHIPSEC_KURULUM_BOZUK")) or not flash.available():
+        if not ui.JSON:
+            print(D("  CHIPSEC çağrılamadı (kurulum bozuk görünüyor) — yeniden kuruluyor..."),
+                  flush=True)
+        flash.reset_cmd_cache()
+        rok, rmsg = pip_install_chipsec()
+        flash.reset_cmd_cache()
+        if rok and flash.available():
+            spi_ok, detail = flash.spi_probe()
+            if spi_ok:
+                return True, "CHIPSEC SPI hazır (" + detail + ")"
+        else:
+            return False, ("CHIPSEC kurulumu onarılamadı: " + rmsg +
+                           " — 'kontrol' komutuyla yeniden deneyin.")
+
     sb = secure_boot()
     if sb is True:
         return False, ("CHIPSEC var ama SPI sürücüsü yüklenemiyor — Secure Boot AÇIK. "
@@ -401,8 +420,11 @@ def ensure_chipsec(interactive=True, auto=False, need_spi=True):
     # paket var, Secure Boot kapalı, ama sürücü yok -> yönlendir
     if interactive and not ui.JSON:
         _driver_help()
+    det = (detail or "sürücü yüklenemedi")
+    if det.startswith("CHIPSEC_KURULUM_BOZUK:"):
+        det = det[len("CHIPSEC_KURULUM_BOZUK:"):].strip()
     return False, ("CHIPSEC paketi kurulu ama SPI çekirdek sürücüsü bulunamadı (" +
-                   (detail or "sürücü yüklenemedi") + "). Yukarıdaki A/B yolunu izleyin.")
+                   det + "). Yukarıdaki A/B yolunu izleyin.")
 
 
 def startup(auto_install=True, interactive=True):

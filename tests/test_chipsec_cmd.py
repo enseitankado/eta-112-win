@@ -90,6 +90,27 @@ def test_cmd_paket_ici_modulu_kullanir():
     assert cmd[-2:] == ["-m", "chipsec.chipsec_util"], cmd
 
 
+# ---- _is_launch_failure(): modül/başlatma çöküşü vs gerçek sürücü hatası ----
+def test_launch_failure_modul_yok():
+    assert flash._is_launch_failure(
+        "C:\\Python312\\python.exe: No module named chipsec_util\n") is True
+
+
+def test_launch_failure_afis_varsa_degil():
+    # CHIPSEC afişi çıktıysa modül YÜKLENDİ; sorun sürücü/descriptor tarafındadır.
+    txt = ("[CHIPSEC] Version : 1.13.16\n"
+           "usage: chipsec_util.py [options] <command>\n"
+           "ERROR: Unable to load driver\n")
+    assert flash._is_launch_failure(txt) is False
+
+
+def test_launch_failure_zararsiz_tpm_importu_degil():
+    # Afiş + zararsız 'No module named chipsec.library.tpm' -> başlatma çöküşü DEĞİL
+    txt = ("ERROR: ... 'No module named 'chipsec.library.tpm''\n"
+           "[CHIPSEC] Version : 1.13.16\n")
+    assert flash._is_launch_failure(txt) is False
+
+
 def _main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

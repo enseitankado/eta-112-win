@@ -128,9 +128,24 @@ def _parse_bios_region(txt):
     return None
 
 
+def _is_launch_failure(txt):
+    """chipsec_util'in HİÇ çalışmadığını (yanlış '-m' hedefi / bozuk kurulum /
+    import çöküşü) gösterir — bunun SÜRÜCÜYLE İLGİSİ YOKTUR. CHIPSEC afişi çıktıysa
+    modül yüklenmiş demektir; afiş YOKKEN 'No module named' görmek, chipsec_util'in
+    hiç başlamadığını söyler (ör. eski sabit '-m chipsec_util' hatası)."""
+    low = txt.lower()
+    banner = "[chipsec]" in low or "chipsec_util.py" in low or "util command to run" in low
+    if banner:
+        return False
+    return ("no module named" in low or "modulenotfounderror" in low
+            or "can't open file" in low or "no module" in low)
+
+
 def spi_probe():
     """Çekirdek sürücüsünü yükleyip 'spi info' ile flash descriptor okumayı dener.
-    Salt-okunur bir sorgudur (flash'a yazmaz). Döner (ok: bool, detay: str)."""
+    Salt-okunur bir sorgudur (flash'a yazmaz). Döner (ok: bool, detay: str).
+    DİKKAT: 'sürücü yüklenemedi' ile 'chipsec_util hiç çalışmadı (kurulum bozuk)'
+    ayrı raporlanır; ikincisi için sürücü derlemeye yönlendirmek YANLIŞ olur."""
     try:
         r = _run(["spi", "info"], timeout=150)
     except Exception as e:
@@ -142,6 +157,9 @@ def spi_probe():
     if r.returncode == 0 and "flash region" in txt.lower():
         return True, "descriptor okundu"
     tail = "; ".join([l.strip() for l in txt.strip().splitlines() if l.strip()][-2:])
+    if _is_launch_failure(txt):
+        return False, ("CHIPSEC_KURULUM_BOZUK: chipsec_util çalıştırılamadı "
+                       "(sürücü sorunu DEĞİL): " + (tail or "modül bulunamadı"))
     return False, (tail or "SPI descriptor okunamadı (sürücü yüklenemedi?)")
 
 
