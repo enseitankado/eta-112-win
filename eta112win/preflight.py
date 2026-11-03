@@ -143,6 +143,27 @@ def _tail(r, n=6):
     return "\n".join(out.strip().splitlines()[-n:])
 
 
+def _bundled_chipsec_wheel():
+    """Depoda hazır (prebuilt) chipsec wheel'i varsa yolunu döner, yoksa None.
+    EfiCompressor'suz, py3-none-any; derleyici/ağ gerektirmeden kurulur."""
+    import glob
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    whls = sorted(glob.glob(os.path.join(repo, "prebuilt", "chipsec-*.whl")))
+    return whls[-1] if whls else None
+
+
+def _install_chipsec_from_bundle():
+    """chipsec'i DEPODAKI hazır wheel'den kurar (hızlı; derleme yok). pywin32
+    bağımlılığı PyPI'den gelir (küçük, hızlı). Döner (ok, mesaj)."""
+    whl = _bundled_chipsec_wheel()
+    if not whl:
+        return False, "depoda hazır chipsec wheel yok"
+    r = _pip(["install", "--upgrade", whl])
+    if r.returncode == 0 and chipsec_util_ok():
+        return True, "chipsec depodaki hazır wheel'den kuruldu (%s)" % os.path.basename(whl)
+    return False, "depo wheel'inden kurulamadı:\n" + _tail(r)
+
+
 def _install_chipsec_nocompile():
     """chipsec'i EfiCompressor C uzantısı olmadan kaynaktan kurar (MSVC istemez).
     sdist'i indirir, setup.py içindeki ext_modules'ü boşaltır, kurar.
@@ -208,10 +229,14 @@ def _install_chipsec_nocompile():
 
 
 def pip_install_chipsec():
-    """CHIPSEC Python paketini kurar. Önce derleyici varsa düz pip; yoksa (ya da
-    düz kurulum MSVC yüzünden patlarsa) EfiCompressor'suz kaynak kurulumu.
+    """CHIPSEC Python paketini kurar. Sıra: (1) DEPODAKI hazır wheel (hızlı, derleme
+    yok), (2) derleyici varsa düz pip, (3) EfiCompressor'suz kaynak kurulumu.
     Döner (ok, mesaj)."""
-    # pywin32 Windows'ta chipsec'in bağımlılığı — wheel olarak gelir
+    # 1) depoda hazır wheel varsa oradan (kullanıcı: 'hazır kütüphaneyi depodan getir')
+    ok, msg = _install_chipsec_from_bundle()
+    if ok:
+        return True, msg
+    # 2) derleyici varsa düz pip
     if compiler_present():
         r = _pip(["install", "--upgrade", "chipsec"])
         if r.returncode == 0:
