@@ -164,7 +164,15 @@ def _install_chipsec_from_bundle():
     whl = _bundled_chipsec_wheel()
     if not whl:
         return False, "depoda hazır chipsec wheel yok"
-    r = _pip(["install", "--upgrade", whl])
+    # --force-reinstall ŞART: makinede ZATEN daha yeni/bozuk bir chipsec kuruluysa
+    # ('No module named chipsec_util' belirtisi — modülü paket içine taşıyan bir
+    # sürüm), düz '--upgrade' onu 1.13.16'ya DÜŞÜRMEZ ('already satisfied' der) ve
+    # onarım sessizce başarısız olur. force-reinstall, doğrulanmış top-level
+    # yerleşimli sürümü kesinlikle yerine koyar. Önce chipsec'i tek başına değiştir
+    # (--no-deps), sonra bağımlılıkları (pywin32) tamamla.
+    r = _pip(["install", "--force-reinstall", "--no-deps", whl])
+    if r.returncode == 0:
+        _pip(["install", whl])  # eksik bağımlılık (pywin32) varsa tamamla
     flash.reset_cmd_cache()  # yeni kurulumun modül yerleşimini yeniden çöz
     if r.returncode == 0 and chipsec_util_ok():
         return True, "chipsec depodaki hazır wheel'den kuruldu (%s)" % os.path.basename(whl)
@@ -217,12 +225,16 @@ def _install_chipsec_nocompile():
                 patched = re.sub(r"ext_modules\s*=\s*extra_kw", "ext_modules=[]", txt)
             with open(setup_py, "w", encoding="utf-8") as f:
                 f.write(patched)
-        # 4) kur (derleme yok)
-        r = _pip(["install", "--no-build-isolation", pkg], timeout=1800)
+        # 4) kur (derleme yok). --force-reinstall: makinede daha yeni/bozuk bir
+        #    chipsec varsa onu bu sürüme kesinlikle DEĞİŞTİR (yoksa 'already
+        #    satisfied' deyip bozuk kurulum kalır).
+        r = _pip(["install", "--no-build-isolation", "--force-reinstall", pkg],
+                 timeout=1800)
         if r.returncode != 0:
             # setuptools/wheel eksikse bir kez tamamlayıp yeniden dene
             _pip(["install", "--upgrade", "setuptools", "wheel"], timeout=600)
-            r = _pip(["install", "--no-build-isolation", pkg], timeout=1800)
+            r = _pip(["install", "--no-build-isolation", "--force-reinstall", pkg],
+                     timeout=1800)
         if r.returncode != 0:
             return False, "chipsec kurulamadı (uzantısız):\n" + _tail(r)
         flash.reset_cmd_cache()  # yeni kurulumun modül yerleşimini yeniden çöz
@@ -246,7 +258,7 @@ def pip_install_chipsec():
         return True, msg
     # 2) derleyici varsa düz pip (DOĞRULANMIŞ sürüme sabit)
     if compiler_present():
-        r = _pip(["install", "--upgrade", "chipsec==" + CHIPSEC_VERSION])
+        r = _pip(["install", "--force-reinstall", "chipsec==" + CHIPSEC_VERSION])
         flash.reset_cmd_cache()
         if r.returncode == 0:
             return True, "chipsec kuruldu (pip)"
