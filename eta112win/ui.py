@@ -238,9 +238,21 @@ def menu_loop(baslik, ogeler, yol=None, ana=False):
 def _sec(oge, yol):
     etiket, _aciklama, *rest = oge
     fn = rest[0] if rest else None
+    alt_menu = rest[1] if len(rest) > 1 else False
     if fn is None:
         return "geri"
-    print("\033[2J\033[H", end="")
+    if alt_menu:
+        # Alt menü: kendi ekranını/döngüsünü yönetir ve Esc ile üst menüye döner.
+        # Dönüşte 'Devam etmek için Enter...' SORMA — Esc doğrudan üst menüye
+        # dönsün, ek bir Enter onayı gerekmesin.
+        try:
+            fn()
+        except KeyboardInterrupt:
+            print()
+        except SystemExit:
+            pass
+        return None
+    print("\033[2J\033[H", end="")  # yaprak işlem: çıktı görünsün diye ekranı temizle
     try:
         fn()
     except KeyboardInterrupt:

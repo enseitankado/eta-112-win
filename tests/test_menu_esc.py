@@ -73,6 +73,35 @@ def test_ana_down_sonra_iki_esc_cikis():
     assert ui.menu_loop("ana", ITEMS, ana=True) == 0
 
 
+def test_sec_altmenu_enter_sormaz():
+    # Alt menü öğesi (4. eleman True): Esc ile üst menüye dönüşte 'Devam... Enter'
+    # SORULMAMALI. Aksi hâlde Esc tek başına üst menüye dönmez, ek Enter ister.
+    calls = []
+    ui.ask = lambda *a, **k: (calls.append(1), "")[1]
+    ui._draw = lambda *a, **k: None
+    oge = ("Alt menü", "", lambda: 0, True)
+    assert ui._sec(oge, []) is None
+    assert calls == [], "alt menüden dönüşte Enter onayı sorulmamalı"
+
+
+def test_sec_yaprak_enter_sorar():
+    # Yaprak işlem (komut): çıktı okunabilsin diye dönüşte Enter beklenmeli.
+    calls = []
+    ui.ask = lambda *a, **k: (calls.append(1), "")[1]
+    ui._draw = lambda *a, **k: None
+    oge = ("Komut", "", lambda: 0)
+    assert ui._sec(oge, []) is None
+    assert calls == [1], "yaprak işlemden sonra Enter beklenmeli"
+
+
+def test_sec_geri_none():
+    # fn None ('Geri'/'Çıkış'): 'geri' döner, hiç Enter sorulmaz.
+    calls = []
+    ui.ask = lambda *a, **k: (calls.append(1), "")[1]
+    assert ui._sec(("Geri", "", None), []) == "geri"
+    assert calls == []
+
+
 def _main():
     tests = [v for k, v in sorted(globals().items()) if k.startswith("test_")]
     failed = 0

@@ -194,9 +194,9 @@ def _wkey_menu():
 
 def _bios_eeprom_menu():
     return ui.menu_loop("BIOS EEPROM", [
-        ("BIOS parolası", "", _bios_menu),
-        ("MAC adresi", "", _mac_menu),
-        ("Windows ürün anahtarı", "", _wkey_menu),
+        ("BIOS parolası", "", _bios_menu, True),
+        ("MAC adresi", "", _mac_menu, True),
+        ("Windows ürün anahtarı", "", _wkey_menu, True),
         ("Geri", "", None),
     ], yol=["ETA-112-WIN", "BIOS EEPROM"])
 
@@ -219,7 +219,7 @@ def kontrol_main(argv):
 def menu():
     preflight.startup(auto_install=True, interactive=True)
     rc = ui.menu_loop("ETA-112-WIN", [
-        ("BIOS EEPROM", "BIOS parolası · MAC · Windows anahtarı", _bios_eeprom_menu),
+        ("BIOS EEPROM", "BIOS parolası · MAC · Windows anahtarı", _bios_eeprom_menu, True),
         ("Ön kurulum denetimi", "Python · CHIPSEC · Secure Boot; eksikse kur", lambda: kontrol_main([])),
         ("Çıkış", "", None),
     ], yol=["ETA-112-WIN"], ana=True)
