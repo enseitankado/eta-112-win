@@ -106,18 +106,24 @@ ayrı ayrı denetler:
 2. **Çekirdek sürücüsü** (asıl kapı). CHIPSEC paketi kurulu olsa da SPI, bir çekirdek
    sürücüsü yüklenmeden çalışmaz (`CHIPSEC Windows Driver Not Found`). Güncel chipsec'in
    (1.11+) Windows yardımcısı **yalnızca `windowshelper`**'dır ve chipsec'in kendi
-   sürücüsünü (`chipsec_hlpr.sys`) ister. Bu sürücü hazır gelmez; şöyle sağlanır:
+   sürücüsünü (`chipsec_hlpr.sys`) ister. Sürücüyü sağlamak için yönetici PowerShell'de:
 
-   - **Otomatik:** Yönetici PowerShell'de `tools\surucu-kur.ps1` çalıştırın. Script
-     önkoşulları denetler, chipsec kaynağından `chipsec_hlpr.sys`'i WDK ile derler,
-     bir test sertifikasıyla imzalar, yerine kopyalar ve test imzalamayı açar; geriye
-     yalnız **yeniden başlatma** + `python eta-112-win.py bios read` kalır.
-     (Visual Studio C++ Build Tools + WDK kurulu olmalı; script yoksa tam komutu verir.)
-   - **Elle:** Visual Studio + WDK + **.NET Framework (MSBuild)** ile chipsec kaynağından
-     `chipsec_hlpr.sys`'i derleyin (`chipsec-manual.pdf`). Derlenen sürücü WHQL-imzalı
-     olmadığından Windows 10/11'de yüklenebilmesi için **test imzalama açık olmalıdır**:
-     `bcdedit /set testsigning on` çalıştırıp **yeniden başlatın** (Secure Boot zaten
-     kapalı olmalı). .NET Framework **yalnızca bu derleme yolu için** gereklidir.
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File tools\surucu-kur.ps1
+   ```
+
+   - **Varsayılan (HIZLI):** depodaki **hazır sürücüyü** (`prebuilt\chipsec_hlpr.sys`)
+     kullanır → Visual Studio, WDK, .NET kurulumu ve uzun derleme **atlanır**. Yalnız
+     bir test sertifikası üretip sürücüyü imzalar (yerleşik `Set-AuthenticodeSignature`;
+     Windows SDK gerekmez), yerine koyar ve `bcdedit /set testsigning on` ile test
+     imzalamayı açar. Geriye **yeniden başlatma** + `python eta-112-win.py bios read` kalır.
+   - **Kaynaktan derleme (`-Build`):** hazır sürücüyü kullanmak istemezseniz, script
+     chipsec kaynağından `chipsec_hlpr.sys`'i Visual Studio + WDK + **.NET Framework
+     (MSBuild)** ile derler (eksikse .NET 4.8'i kendisi kurar; VS/WDK yoksa tam komutu
+     yazar). Derleme uzun sürer; bu yüzden hazır sürücü önerilir.
+
+   Her iki yolda da sürücü WHQL-imzalı olmadığından **test imzalama açık** olmalı
+   (`bcdedit`, reboot gerektirir; Secure Boot zaten kapalı olmalı).
 
    > Not: Eski chipsec'teki RWEverything (`rwe`) yardımcısı — imzalı `RwDrv.sys` ile
    > reboot'suz yüklenen yol — **chipsec 1.9'da kaldırıldı** ve rwe'li son sürüm
