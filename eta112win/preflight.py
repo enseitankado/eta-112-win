@@ -49,6 +49,12 @@ MIN_PY = (3, 7)
 # chipsec kurulurken SPI için gereksiz olan ve MSVC isteyen C uzantısı.
 _SKIP_EXT = "EfiCompressor"
 
+# Doğrulanmış chipsec sürümü (depodaki hazır wheel bununla aynıdır). Kaynaktan
+# (nocompile) kurarken de bu sürüme SABİTLERİZ: sabitleme olmadan daha yeni bir
+# chipsec sürümü kurulup modül yerleşimini değiştirebilir (ör. top-level
+# 'chipsec_util' -> paket içi 'chipsec.chipsec_util') ve araç kırılabilir.
+CHIPSEC_VERSION = "1.13.16"
+
 
 def python_ok():
     return sys.version_info[:2] >= MIN_PY
@@ -159,6 +165,7 @@ def _install_chipsec_from_bundle():
     if not whl:
         return False, "depoda hazır chipsec wheel yok"
     r = _pip(["install", "--upgrade", whl])
+    flash.reset_cmd_cache()  # yeni kurulumun modül yerleşimini yeniden çöz
     if r.returncode == 0 and chipsec_util_ok():
         return True, "chipsec depodaki hazır wheel'den kuruldu (%s)" % os.path.basename(whl)
     return False, "depo wheel'inden kurulamadı:\n" + _tail(r)
@@ -175,9 +182,9 @@ def _install_chipsec_nocompile():
 
     work = tempfile.mkdtemp(prefix="eta112_chipsec_")
     try:
-        # 1) kaynak dağıtımı indir
-        r = _pip(["download", "chipsec", "--no-deps", "--no-binary=:all:",
-                  "--dest", work], timeout=900)
+        # 1) kaynak dağıtımı indir (DOĞRULANMIŞ sürüme sabitlenir; bkz. CHIPSEC_VERSION)
+        r = _pip(["download", "chipsec==" + CHIPSEC_VERSION, "--no-deps",
+                  "--no-binary=:all:", "--dest", work], timeout=900)
         if r.returncode != 0:
             return False, "chipsec kaynağı indirilemedi:\n" + _tail(r)
         tars = glob.glob(os.path.join(work, "chipsec-*.tar.gz"))
@@ -218,6 +225,7 @@ def _install_chipsec_nocompile():
             r = _pip(["install", "--no-build-isolation", pkg], timeout=1800)
         if r.returncode != 0:
             return False, "chipsec kurulamadı (uzantısız):\n" + _tail(r)
+        flash.reset_cmd_cache()  # yeni kurulumun modül yerleşimini yeniden çöz
         return True, "chipsec kuruldu (EfiCompressor olmadan; SPI için yeterli)"
     except Exception as e:
         return False, "chipsec kurulum hatası: %s" % e
@@ -236,9 +244,10 @@ def pip_install_chipsec():
     ok, msg = _install_chipsec_from_bundle()
     if ok:
         return True, msg
-    # 2) derleyici varsa düz pip
+    # 2) derleyici varsa düz pip (DOĞRULANMIŞ sürüme sabit)
     if compiler_present():
-        r = _pip(["install", "--upgrade", "chipsec"])
+        r = _pip(["install", "--upgrade", "chipsec==" + CHIPSEC_VERSION])
+        flash.reset_cmd_cache()
         if r.returncode == 0:
             return True, "chipsec kuruldu (pip)"
         tail = _tail(r)

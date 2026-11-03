@@ -25,18 +25,60 @@ import subprocess
 SECTOR = 0x1000  # SPI erase sektörü (4 KiB)
 
 
+_CMD_CACHE = None
+
+
+def _resolve_module(py):
+    """chipsec_util'i 'python -m' ile çalıştırmak için IMPORT EDİLEBİLİR modül adını
+    bul. chipsec sürümüne göre bu ya top-level 'chipsec_util' (1.13.x wheel/sdist)
+    ya da paket içi 'chipsec.chipsec_util' (bazı yeni sürümler) olabilir. Sabit
+    'chipsec_util' kullanmak, modülü paket içine taşıyan bir sürüm kurulduğunda
+    'No module named chipsec_util' hatasına yol açıyordu. Hedef yorumlayıcıda
+    find_spec ile gerçekten var olanı seçeriz (top-level önce: chipsec'i import
+    etmeden sınanır)."""
+    probe = (
+        "import importlib.util as u\n"
+        "name=''\n"
+        "for m in ('chipsec_util','chipsec.chipsec_util'):\n"
+        "    try:\n"
+        "        if u.find_spec(m): name=m; break\n"
+        "    except Exception: pass\n"
+        "print('ETA112MOD='+name)\n")
+    try:
+        r = subprocess.run([py, "-I", "-c", probe],
+                           capture_output=True, text=True, timeout=90)
+        for ln in (r.stdout or "").splitlines():
+            if ln.startswith("ETA112MOD="):
+                name = ln[len("ETA112MOD="):].strip()
+                if name:
+                    return name
+    except Exception:
+        pass
+    return "chipsec_util"
+
+
 def _chipsec_cmd():
     """chipsec_util'i çalıştıracak komut öneki. ETA112_CHIPSEC ile ezilebilir.
 
-    Varsayılan olarak ARACI ÇALIŞTIRAN yorumlayıcıyı (sys.executable) kullanır:
-    chipsec paketi bu yorumlayıcının ortamına kurulduğu için 'python -m chipsec_util'
-    daima doğru Python'u bulur. (Sabit "python" kullanmak, PATH'te WindowsApps shim
-    gibi başka bir Python varsa 'No module named chipsec_util' hatasına yol açıyordu.)"""
+    Varsayılan olarak ARACI ÇALIŞTIRAN yorumlayıcıyı (sys.executable) kullanır ve
+    o yorumlayıcıda gerçekten var olan modül adını (_resolve_module) seçer. Böylece
+    chipsec hangi yerleşimle kurulmuş olursa olsun ('chipsec_util' ya da
+    'chipsec.chipsec_util') doğru '-m' hedefi bulunur. Çözüm önbelleğe alınır."""
+    global _CMD_CACHE
     env = os.environ.get("ETA112_CHIPSEC")
     if env:
         return env.split()
+    if _CMD_CACHE is not None:
+        return list(_CMD_CACHE)
     py = os.environ.get("ETA112_PYTHON") or sys.executable or "python"
-    return [py, "-m", "chipsec_util"]
+    _CMD_CACHE = [py, "-m", _resolve_module(py)]
+    return list(_CMD_CACHE)
+
+
+def reset_cmd_cache():
+    """chipsec kurulumu değiştikten sonra modül çözümünü yeniden yaptır."""
+    global _CMD_CACHE
+    _CMD_CACHE = None
 
 
 def available():
@@ -50,9 +92,17 @@ def available():
         return False
     out = (r.stdout or "") + (r.stderr or "")
     low = out.lower()
-    # chipsec_util çalıştıysa banner/usage ya da chipsec'e özgü import logları görünür
-    return (r.returncode == 0 or "chipsec" in low or "usage" in low
-            or "util_commands" in low)
+    # '-m chipsec_util --help' başarıyla çalışınca çıkış kodu 0'dır. Modül
+    # bulunamazsa ('No module named chipsec_util') Python çıkış kodu != 0 verir ve
+    # afiş/usage HİÇ görünmez. Bu yüzden önce çıkış koduna bakarız.
+    # (Eski 'chipsec' alt-dizisi testi, hata metni 'chipsec_util' içerdiği için
+    # bozuk durumu yanlışlıkla 'başarılı' sayıyordu — kaldırıldı. CHIPSEC afişinde
+    # 'No module named chipsec.library.tpm' gibi ZARARSIZ satırlar da olabilir; bu
+    # yüzden 'no module named' metnine değil, çıkış kodu + afiş'e bakarız.)
+    if r.returncode == 0:
+        return True
+    return ("usage: chipsec_util" in low or "[chipsec] version" in low
+            or "util command to run" in low)
 
 
 def _run(args, timeout=600):
