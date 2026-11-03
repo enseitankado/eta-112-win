@@ -83,6 +83,8 @@ def cmd_wkey_set(a):
     sess = flash.FlashSession(prof)
     try:
         try:
+            if not _JSON():
+                print(D("  SPI flash okunuyor (~8 MiB)... program donmadı, lütfen bekleyin."), flush=True)
             data = sess.read_region()
         except flash.FlashError as e:
             return emit({"ok": False, "error": str(e)}, 1) if _JSON() else (print(R("  " + str(e))) or 1)
@@ -114,7 +116,8 @@ def cmd_wkey_set(a):
             if not ui.confirm_evet("Onaylıyorsanız EVET yazın: "):
                 print(Y("  İptal edildi."))
                 return 0
-            print(D("  Yazılıyor..."), flush=True)
+        if not _JSON():
+            print(D("  SPI flash'a yazılıyor (disable-wp + erase + write)... KESMEYİN, bekleyin."), flush=True)
         wok, msg = sess.write_raw_region(bytes(new))
         verified = wok and ("doğrulan" in msg)
         if verified:

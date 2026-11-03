@@ -61,6 +61,9 @@ def load_source(prof, dumppath):
         return None, None, cmsg
     sess = flash.FlashSession(prof)
     try:
+        if not ui.JSON:
+            print(D("  SPI flash okunuyor — tüm çip (~8 MiB) CHIPSEC ile dökülüyor."))
+            print(D("  Bu 10-40 sn sürebilir; program donmadı, lütfen bekleyin..."), flush=True)
         data = sess.read_region()
     except flash.FlashError as e:
         return None, None, str(e)
@@ -249,6 +252,8 @@ def _write_flow(prof, edits, pwcheck=None):
     sess = flash.FlashSession(prof)
     try:
         try:
+            if not ui.JSON:
+                print(D("  SPI flash okunuyor (~8 MiB)... program donmadı, lütfen bekleyin."), flush=True)
             cur = sess.read_region()
         except flash.FlashError as e:
             return {"ok": False, "changed": False, "error": str(e)}
@@ -263,6 +268,9 @@ def _write_flow(prof, edits, pwcheck=None):
             changes = changes + pchanges
         if not changes:
             return {"ok": True, "changed": False, "error": None, "verified": True}
+        if not ui.JSON:
+            print(D("  SPI flash'a yazılıyor (disable-wp + erase + write + geri-oku)..."))
+            print(D("  Bu 20-40 sn sürebilir; program donmadı, LÜTFEN KESMEYİN / kapatmayın."), flush=True)
         ok, msg = sess.write_region(new)
         if not ok:
             return {"ok": False, "changed": False, "error": "yazma başarısız: " + msg}
