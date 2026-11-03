@@ -171,7 +171,13 @@ Import-Certificate -FilePath (Join-Path $work "etatest.cer") -CertStoreLocation 
 $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Recurse -Filter signtool.exe -ErrorAction SilentlyContinue |
             Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
 if (-not $signtool) { Dur "signtool.exe bulunamadi (Windows SDK kurulu mu?)." }
-& $signtool.FullName sign /v /fd SHA256 /sha1 $cert.Thumbprint /t http://timestamp.digicert.com $sys.FullName
+# /sm: sertifika LocalMachine\My'de oldugu icin signtool MAKINE deposuna bakmali
+# (varsayilan kullanici deposuna bakar -> 'No certificates found' hatasi verir).
+& $signtool.FullName sign /v /sm /fd SHA256 /sha1 $cert.Thumbprint /t http://timestamp.digicert.com $sys.FullName
+if ($LASTEXITCODE -ne 0) {
+    Yaz "Zaman damgasi sunucusu erisilemez olabilir; zaman damgasiz tekrar deneniyor..." "Yellow"
+    & $signtool.FullName sign /v /sm /fd SHA256 /sha1 $cert.Thumbprint $sys.FullName
+}
 if ($LASTEXITCODE -ne 0) { Dur "Imzalama basarisiz." }
 
 # ---- 7) yerine kopyala ----
