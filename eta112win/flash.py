@@ -186,8 +186,22 @@ class FlashSession:
             with open(path, "wb") as f:
                 f.write(payload)
             abs_addr = lo
+            # Yazma öncesi BIOS Write Enable (BIOSWE=1). Gözlendi: BIOSWE=0 iken chipsec
+            # erase/write "tamamlandı" dese de flash değişmiyor. chipsec 'spi disable-wp'
+            # BIOSWE'yi açar (Linux'ta flashrom bunu kendi halleder). BLE=0 olduğundan
+            # ayar kalıcıdır; reboot'ta sıfırlanır (geri dönüşlü).
+            _run(["spi", "disable-wp"])
+            # SPI flash'a PROGRAMLAMADAN ÖNCE sektörleri SİL. chipsec 'spi write' erase
+            # YAPMAZ; silinmemiş (0xFF olmayan) sektöre programlama bitleri 1->0 ancak
+            # çevirebildiği için yazma etkisiz/bozuk olur (Linux'ta flashrom erase+write
+            # yapar). payload zaten tam sektör(ler) içeriği olduğundan erase güvenli:
+            # yalnız hedeflenen slot değişir, sektörün gerisi aynen geri yazılır.
+            erase_out = ""
+            for sa in range(lo, hi, SECTOR):
+                er = _run(["spi", "erase", "0x%X" % sa])
+                erase_out += (er.stdout or "") + (er.stderr or "")
             r = _run(["spi", "write", "0x%X" % abs_addr, path])
-            out = (r.stdout or "") + (r.stderr or "")
+            out = erase_out + (r.stdout or "") + (r.stderr or "")
         finally:
             try:
                 os.remove(path)
