@@ -1,4 +1,4 @@
-<#
+﻿<#
   SPDX-License-Identifier: GPL-3.0-or-later
   eta-112-win — Copyright (C) 2026 Özgür Koca <https://ozgurkoca.com>
 
@@ -42,11 +42,17 @@ try { if (Confirm-SecureBootUEFI) {
 # ---- 2) Python + chipsec ----
 if (-not $Python) {
     foreach ($c in "python","py") {
-        $p = Get-Command $c -ErrorAction SilentlyContinue
-        if ($p -and (& $p.Source --version 2>&1) -match "Python 3") { $Python = $p.Source; break }
+        # Get-Command birden cok sonuc donebilir (gercek Python + Store takma adi);
+        # gercek bir .Source'u olan ILK sonucu al, yoksa '& <dizi>' hatasi olur.
+        $cmd = Get-Command $c -ErrorAction SilentlyContinue |
+               Where-Object { $_.Source -and (Test-Path $_.Source) } | Select-Object -First 1
+        if (-not $cmd) { continue }
+        $src = [string]$cmd.Source
+        $ver = & $src --version 2>&1
+        if ("$ver" -match "Python 3") { $Python = $src; break }
     }
 }
-if (-not $Python) { Dur "Python 3 bulunamadi." }
+if (-not $Python) { Dur "Python 3 bulunamadi (python/py PATH'te mi?)." }
 Yaz "Python: $Python" "Green"
 
 $chipsecDir = & $Python -c "import chipsec, os; print(os.path.dirname(chipsec.__file__))" 2>$null
