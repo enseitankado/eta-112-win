@@ -76,22 +76,42 @@ Yaz "Visual Studio: $vsPath" "Green"
 $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
 if (-not (Test-Path $vcvars)) { Dur "vcvars64.bat bulunamadi: $vcvars" }
 
-# ---- 4) chipsec kaynagini indir (surucu kaynagi paket icinde yok) ----
+# ---- 4) surucu kaynagini indir ----
+# NOT: PyPI sdist (pip download) surucu KAYNAGINI icermez; drivers\windows yalniz
+# chipsec'in GitHub release zip'inde bulunur. Release surucusunun ioctl ABI'si kurulu
+# PyPI paketinin windowshelper'i ile uyumludur (CLOSE_DRIVER=0x803 ... dogrulandi).
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $work = Join-Path $env:TEMP ("eta112_drv_" + [guid]::NewGuid().ToString("N").Substring(0,8))
 New-Item -ItemType Directory -Force $work | Out-Null
-Yaz "chipsec $chipsecVer kaynagi indiriliyor (surucu kaynagi icin)..." "Gray"
-& $Python -m pip download "chipsec==$chipsecVer" --no-deps --no-binary=:all: --dest $work 2>&1 | Out-Null
-$tar = Get-ChildItem $work -Filter "chipsec-*.tar.gz" | Select-Object -First 1
-if (-not $tar) { Dur "chipsec kaynagi indirilemedi." }
-tar -xzf $tar.FullName -C $work
-$drvSrc = Get-ChildItem $work -Directory -Filter "chipsec-*" |
-          ForEach-Object { Join-Path $_.FullName "drivers\windows\chipsec" } |
-          Where-Object { Test-Path $_ } | Select-Object -First 1
-if (-not $drvSrc) { Dur "drivers\windows\chipsec kaynagi bulunamadi." }
+Yaz "chipsec GitHub release kaynagi indiriliyor (surucu kaynagi icin)..." "Gray"
+$hdr = @{ "User-Agent" = "eta-112-win" }
+$rel = Invoke-RestMethod "https://api.github.com/repos/chipsec/chipsec/releases/latest" -Headers $hdr
+$zipUrl = ($rel.assets | Where-Object { $_.name -like "*.zip" } | Select-Object -First 1).browser_download_url
+if (-not $zipUrl) { $zipUrl = $rel.zipball_url }
+$zip = Join-Path $work "chipsec-src.zip"
+Invoke-WebRequest $zipUrl -OutFile $zip -Headers $hdr -UseBasicParsing
+Expand-Archive $zip -DestinationPath $work -Force
+$drvSrc = Get-ChildItem $work -Recurse -Directory -Filter "chipsec" -ErrorAction SilentlyContinue |
+          ForEach-Object { $_.FullName } |
+          Where-Object { Test-Path (Join-Path $_ "chipsec_hlpr.vcxproj") } | Select-Object -First 1
+if (-not $drvSrc) { Dur "drivers\windows\chipsec kaynagi (chipsec_hlpr.vcxproj) bulunamadi." }
 Yaz "Surucu kaynagi: $drvSrc" "Green"
 
 # ---- 5) derle (msbuild, x64) ----
-Yaz "Surucu derleniyor (msbuild, $Configuration x64)... WDK gerekir." "Cyan"
+# KMDF icin WDK'nin VS toolset entegrasyonu (WindowsKernelModeDriver10.0) sart.
+# Sessiz 'wdksetup /quiet' bazen bu VSIX'i KURMAZ -> MSB8020 hatasi. Once kontrol et:
+$toolsetOk = Test-Path (Join-Path $vsPath "MSBuild\Microsoft\VC\v170\Platforms\x64\PlatformToolsets\WindowsKernelModeDriver10.0")
+if (-not $toolsetOk) {
+    Write-Host ""
+    Yaz "WindowsKernelModeDriver10.0 toolset VS'e entegre degil (WDK VSIX eksik)." "Yellow"
+    Yaz "Cozum (birini secin):" "Yellow"
+    Yaz "  * Visual Studio Installer'i acip Degistir > Tekil bilesenler > 'Windows Driver Kit' ekleyin;" "Yellow"
+    Yaz "    ya da WDK'yi (wdksetup.exe) ETKILESIMLI calistirip VSIX kurulumunu onaylayin." "Yellow"
+    Yaz "  * Alternatif (en guvenilir): EWDK ISO ile derleyin (kendi kendine yeten, kurulum gerekmez):" "Yellow"
+    Yaz "    https://learn.microsoft.com/windows-hardware/drivers/download-the-wdk  (Enterprise WDK)" "Yellow"
+    Dur "WDK toolset entegrasyonu tamamlanip tekrar calistirin."
+}
+Yaz "Surucu derleniyor (msbuild, $Configuration x64)..." "Cyan"
 $proj = Join-Path $drvSrc "chipsec_hlpr.vcxproj"
 $bat = Join-Path $work "build.cmd"
 @"
