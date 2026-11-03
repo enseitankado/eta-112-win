@@ -48,7 +48,7 @@ karşılığıyla değiştirilmiştir:
 | MAC **oku / doğrula** | sysfs + kural | `GetAdaptersInfo` + kural | ✅ sürücüsüz |
 | Model saptama | `dmidecode` | `GetSystemFirmwareTable('RSMB')` SMBIOS | ✅ sürücüsüz |
 | BIOS parolası **oku** | `flashrom` | CHIPSEC `spi dump` | ✅ sürücü ister; 14MB57'de canlı doğrulandı |
-| BIOS parolası **yaz/sil** | `flashrom` | CHIPSEC `disable-wp`+`erase`+`write` | ⚠️ sürücü ister; donanım yazma korumasına bağlı |
+| BIOS parolası **yaz/sil** | `flashrom` | CHIPSEC `disable-wp`+`erase`+`write` | ✅ sürücü ister; 14MB57'de canlı doğrulandı |
 | Windows anahtarı **değiştir** | `flashrom` | CHIPSEC `spi write` | ⚠️ sürücü ister |
 | MAC **değiştir** (eFuse) | `rtnicpg`+`pgdrv.ko` | Realtek Windows PG aracı | ⛔ otomatik değil (vendor aracı) |
 
@@ -235,8 +235,9 @@ yazma ayrıca erase + write + geri-oku yapar. Bu nedenle:
 
 ## Canlı yazma ve donanım notları
 
-Çözümleme/düzenleme mantığı doğrulanmıştır (sentetik ve gerçek dökümde dry-run). Canlı
-flash yazmanın **donanımda tutması** için:
+Canlı BIOS parolası yazma **VESTEL 14MB57'de gerçek donanımda doğrulanmıştır** (parola
+değiştir → oku → eski haline getir turu, her adımda geri-oku ile `verified`). Canlı
+flash yazmanın **donanımda tutması** için şunlar gerekir:
 
 - **Secure Boot kapalı** olmalı (sürücü yüklensin).
 - **BIOS Write Enable (BIOSWE)** açık olmalı. Araç yazmadan önce `spi disable-wp` ile
