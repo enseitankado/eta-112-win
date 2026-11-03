@@ -58,6 +58,28 @@ $chipsecVer = & $Python -c "import chipsec; print(open(__import__('os').path.joi
 Yaz "chipsec: $chipsecVer  ($chipsecDir)" "Green"
 $driverDest = Join-Path $chipsecDir "helper\windows\windows_amd64"
 
+# ---- 2b) .NET Framework 4.x (MSBuild/WDK derlemesi icin) ----
+# NOT: .NET aracin CALISMA ZAMANI bagimliligi DEGILDIR; yalnizca surucuyu buradaki
+# gibi WDK/MSBuild ile derlerken gerekir. Eksikse resmi .NET 4.8'i sessiz kurar.
+function Dotnet4Var {
+    try {
+        $r = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full' -ErrorAction Stop
+        return ($r.Release -ge 378389)   # 4.5+ (MSBuild icin fazlasiyla yeter)
+    } catch { return $false }
+}
+if (Dotnet4Var) {
+    Yaz ".NET Framework 4.x: kurulu" "Green"
+} else {
+    Yaz ".NET Framework 4.x yok — resmi .NET 4.8 sessiz kuruluyor..." "Yellow"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $ndp = Join-Path $env:TEMP "ndp48-web.exe"
+    try {
+        Invoke-WebRequest "https://go.microsoft.com/fwlink/?linkid=2088631" -OutFile $ndp -UseBasicParsing
+        $pn = Start-Process $ndp -ArgumentList "/q","/norestart" -Wait -PassThru
+        if (Dotnet4Var) { Yaz ".NET 4.8 kuruldu (cikis $($pn.ExitCode))" "Green" } else { Yaz ".NET kurulumu tamamlanamadi (cikis $($pn.ExitCode)); yeniden baslatma gerekebilir." "Yellow" }
+    } catch { Yaz ".NET indirilemedi: $_  — https://dotnet.microsoft.com/download/dotnet-framework" "Yellow" }
+}
+
 # ---- 3) Visual Studio + WDK ----
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $vswhere)) {
