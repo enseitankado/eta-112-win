@@ -188,20 +188,34 @@ class FlashSession:
             abs_addr = lo
             r = _run(["spi", "write", "0x%X" % abs_addr, path])
             out = (r.stdout or "") + (r.stderr or "")
-            if r.returncode != 0 or "error" in out.lower() or "fail" in out.lower():
-                return False, "\n".join(out.strip().splitlines()[-4:])
         finally:
             try:
                 os.remove(path)
             except OSError:
                 pass
-        # geri-oku doğrula
+        # Başarıyı GERİ-OKU ile doğrula. DİKKAT: chipsec, EfiCompressor'suz kurulumda
+        # her çağrıda zararsız bir "ERROR: Failed to import compression module" banner'ı
+        # yazar; bu yüzden çıktıdaki 'error'/'fail' metnine BAKMAYIZ (yanlış pozitif) —
+        # tek gerçek ölçüt flash'ın gerçekten değişmesidir.
         self._dump = None
         self._base = None
-        rb = self.read_region()
+        try:
+            rb = self.read_region()
+        except FlashError as e:
+            return False, "yazma sonrası geri-okuma başarısız: %s" % e
         if rb[lo:hi] == payload:
             return True, "yazıldı ve doğrulandı"
-        return True, "yazıldı ama geri-oku doğrulaması tutmadı"
+        # Komut 'tamamlandı' dese bile flash değişmediyse: donanım yazmayı reddetmiş.
+        completed = "completed" in out.lower()
+        if completed:
+            return False, ("yazma donanımda ETKİLİ OLMADI: chipsec tamamlandı ama flash "
+                           "değişmedi. BIOS bölgesi büyük olasılıkla donanımda yazma "
+                           "korumalı (flash chip SR blok-koruma ya da descriptor bölge "
+                           "erişimi). Secure Boot kapalı + PR0-4/BIOSWE temiz olsa da "
+                           "bazı kartlar OS altında SPI yazmayı kabul etmez.")
+        tail = "\n".join([l for l in out.strip().splitlines()
+                          if "compression module" not in l.lower()][-4:])
+        return False, "yazma başarısız:\n" + tail
 
     def close(self):
         if self._tmp and os.path.exists(self._tmp):

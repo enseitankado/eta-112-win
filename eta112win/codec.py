@@ -112,28 +112,34 @@ def _chain_named(es):
     return min(nm, key=lambda e: e["off"]) if nm else None
 
 
-def resolve_current(entries, banks):
-    """Çift-banka NVRAM'de GERÇEK güncel parolayı bulur. Aktif banka = diğerinin
-    zincir-sonundan devam eden (daha yeni reclaim edilmiş) banka."""
+def resolve_current_entry(entries, banks):
+    """Çift-banka NVRAM'de GERÇEK güncel parola GİRİŞİNİ (dict) bulur. Aktif banka =
+    diğerinin zincir-sonundan devam eden (daha yeni reclaim edilmiş) banka.
+    Yazma bu girişi hedef alır (tek giriş/tek sektör) — tüm bankayı değil."""
     if not banks or len(banks) < 2:
-        t = _bank_tail(entries)
-        return t["blob"] if t else None
+        return _bank_tail(entries)
     (a0, a1), (b0, b1) = banks[0], banks[1]
     A = [e for e in entries if a0 <= e["off"] < a1]
     B = [e for e in entries if b0 <= e["off"] < b1]
     tA = _bank_tail(A)
     tB = _bank_tail(B)
     if tA is None:
-        return tB["blob"] if tB else None
+        return tB
     if tB is None:
-        return tA["blob"]
+        return tA
     nA = _chain_named(A)
     nB = _chain_named(B)
     if nB and nB["blob"][:60] == tA["blob"][:60]:
-        return tB["blob"]
+        return tB
     if nA and nA["blob"][:60] == tB["blob"][:60]:
-        return tA["blob"]
-    return (tB if tB["off"] > tA["off"] else tA)["blob"]
+        return tA
+    return tB if tB["off"] > tA["off"] else tA
+
+
+def resolve_current(entries, banks):
+    """Güncel parola blob'u (resolve_current_entry'nin blob'u)."""
+    e = resolve_current_entry(entries, banks)
+    return e["blob"] if e else None
 
 
 def pw_filter(entries, prof):

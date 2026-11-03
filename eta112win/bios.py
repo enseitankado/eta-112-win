@@ -190,17 +190,22 @@ def cmd_calibrate(a):
 
 # ===================== düzenleme / yazma =====================
 def _edit_image(data, prof, edits):
+    """Yalnız AKTİF parola girişini düzenler (resolve_current_entry). Eskiden bankadaki
+    TÜM girişler düzenleniyordu; bu, 14MB57 gibi çok sayıda eski AMITSESetup girişi
+    biriken kartlarda ~256 KiB'lik gereksiz/riskli bir yazma span'ine yol açıyordu.
+    Aktif giriş tek sektördedir; BIOS parolayı zaten o girişten okur."""
     data = bytearray(data)
     changes = []
-    for e in codec.pw_filter(codec.nvar_scan(data, prof.get("store_len", 61)), prof):
-        if not any(lo <= e["off"] < hi for (lo, hi) in prof["banks"]):
-            continue
-        for off, val in edits:
-            a = e["data_off"] + off
-            old = bytes(data[a:a + prof["slot_len"]])
-            if old != val:
-                data[a:a + prof["slot_len"]] = val
-                changes.append((a, old, val))
+    ents = codec.pw_filter(codec.nvar_scan(data, prof.get("store_len", 61)), prof)
+    e = codec.resolve_current_entry(ents, prof["banks"])
+    if e is None or not any(lo <= e["off"] < hi for (lo, hi) in prof["banks"]):
+        return bytes(data), changes
+    for off, val in edits:
+        a = e["data_off"] + off
+        old = bytes(data[a:a + prof["slot_len"]])
+        if old != val:
+            data[a:a + prof["slot_len"]] = val
+            changes.append((a, old, val))
     return bytes(data), changes
 
 
