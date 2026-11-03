@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+﻿# SPDX-License-Identifier: GPL-3.0-or-later
 # eta-112-win baslatici — eta-112'nin baslat.sh'inin Windows karsiligi.
 # Copyright (C) 2026 Ozgur Koca <https://ozgurkoca.com>
 #
@@ -37,12 +37,17 @@ Write-Host ""
 
 # ---- 2) Python ----
 function Python-Bul {
+    # Get-Command birden cok sonuc donebilir (gercek Python + Microsoft Store takma
+    # adi). Gercek bir .Source'u olan adaylari TEK TEK dene; ilk "Python 3" diyeni
+    # TEK dize olarak dondur. (Yoksa $py dizi/bos olur, '& $py' patlar.)
     foreach ($c in @("python","py")) {
-        $p = Get-Command $c -ErrorAction SilentlyContinue
-        if ($p) {
+        $cands = @(Get-Command $c -ErrorAction SilentlyContinue |
+                   Where-Object { $_.Source -and (Test-Path $_.Source) })
+        foreach ($p in $cands) {
+            $src = [string]$p.Source
             try {
-                $v = & $p.Source --version 2>&1
-                if ($v -match "Python 3") { return $p.Source }
+                $v = & $src --version 2>&1
+                if ("$v" -match "Python 3") { return $src }
             } catch {}
         }
     }
