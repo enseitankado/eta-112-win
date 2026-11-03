@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 *.bin
 *.rom
+*.sys
 build/
 dist/
 *.egg-info/
