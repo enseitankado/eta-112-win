@@ -163,7 +163,7 @@ def _read_key():
     return ch
 
 
-def _draw(baslik, ogeler, secili, yol):
+def _draw(baslik, ogeler, secili, yol, esc_uyari=False):
     print("\033[2J\033[H", end="")  # ekranı temizle
     bc = " > ".join(yol) if yol else baslik
     print()
@@ -178,7 +178,10 @@ def _draw(baslik, ogeler, secili, yol):
             satir += "  " + D("— " + aciklama)
         print(satir)
     hr()
-    print("  " + D(_MENU_IPUCU))
+    if esc_uyari:
+        print("  " + Y("Çıkmak için bir kez daha Esc'ye basın"))
+    else:
+        print("  " + D(_MENU_IPUCU))
 
 
 def menu_loop(baslik, ogeler, yol=None, ana=False):
@@ -189,15 +192,19 @@ def menu_loop(baslik, ogeler, yol=None, ana=False):
         return _menu_basit(baslik, ogeler, yol)
     secili = 0
     n = len(ogeler)
+    esc_say = 0  # ana menüde ard arda Esc sayacı: 2 kez -> çıkış
     while True:
-        _draw(baslik, ogeler, secili, yol)
+        _draw(baslik, ogeler, secili, yol, esc_uyari=(ana and esc_say == 1))
         try:
             k = _read_key()
         except KeyboardInterrupt:
             if ana:
+                esc_say = 0
                 secili = n - 1  # Çıkış'a taşı, çıkma
                 continue
             return 0
+        if k != "esc":
+            esc_say = 0
         if k == "up":
             secili = (secili - 1) % n
         elif k == "down":
@@ -212,10 +219,12 @@ def menu_loop(baslik, ogeler, yol=None, ana=False):
             if r == "geri":
                 return 0
         elif k == "esc":
-            if ana:
-                secili = n - 1
-            else:
-                return 0
+            if not ana:
+                return 0        # alt menü: üst menüye dön (tek Esc)
+            esc_say += 1
+            if esc_say >= 2:
+                return 0        # ana menü: 2. Esc -> çıkış
+            secili = n - 1      # 1. Esc: Çıkış'ı işaretle + uyarı göster
 
 
 def _sec(oge, yol):

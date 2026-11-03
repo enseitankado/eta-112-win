@@ -13,7 +13,7 @@ import sys
 
 from . import ui
 from .ui import (B, R, G, Y, Cy, D, emit)
-from . import bios, mac, wkey, preflight
+from . import bios, mac, wkey, preflight, feedback
 from .profiles import PROFILES
 
 
@@ -218,11 +218,14 @@ def kontrol_main(argv):
 
 def menu():
     preflight.startup(auto_install=True, interactive=True)
-    return ui.menu_loop("ETA-112-WIN", [
+    rc = ui.menu_loop("ETA-112-WIN", [
         ("BIOS EEPROM", "BIOS parolası · MAC · Windows anahtarı", _bios_eeprom_menu),
         ("Ön kurulum denetimi", "Python · CHIPSEC · Secure Boot; eksikse kur", lambda: kontrol_main([])),
         ("Çıkış", "", None),
     ], yol=["ETA-112-WIN"], ana=True)
+    # Ana menüden çıkış: geliştiriciye (Özgür Koca) geri bildirim sor (ntfy -> eta-112)
+    feedback.exit_feedback()
+    return rc
 
 
 def main(argv=None):

@@ -46,7 +46,11 @@ tek başına çalıştırmak için:
 python eta-112-win.py kontrol
 ```
 
-Açılan menüden ok tuşlarıyla gezinip Enter ile seçim yapılır (1–9 doğrudan, Esc geri).
+Açılan menüden ok tuşlarıyla gezinip Enter ile seçim yapılır (1–9 doğrudan). **Esc**:
+alt menülerde bir üst menüye döner; ana menüde **iki kez Esc** programdan çıkar. Çıkışta
+araç, geliştirici **Özgür Koca**'ya ([ozgurkoca.com](https://ozgurkoca.com)) geri bildirim
+göndermek isteyip istemediğinizi sorar; isterseniz yazdığınız mesaj `ntfy.sh` üzerinden
+`eta-112` konusuna iletilir (ek paket gerekmez).
 
 ---
 
