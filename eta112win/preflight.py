@@ -342,6 +342,32 @@ def report(flash_needed=False, probe_spi=False):
     return base_ok
 
 
+def _surucu_kur_path():
+    """Depodaki tools/surucu-kur.ps1 yolu (yoksa None)."""
+    repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    p = os.path.join(repo, "tools", "surucu-kur.ps1")
+    return p if os.path.exists(p) else None
+
+
+def run_driver_installer():
+    """tools/surucu-kur.ps1'i MEVCUT yönetici oturumda çalıştırır: depodaki hazır
+    chipsec_hlpr.sys'i doğru yere koyar, kendinden-imzalı test sertifikasıyla imzalar
+    (Root/TrustedPublisher'a ekler) ve 'bcdedit /set testsigning on' yapar. Çıktı
+    doğrudan konsola akar. Döner (ok, mesaj). Etkin olması için SONRA YENİDEN
+    BAŞLATMA gerekir (bu oturumda doğrulanamaz)."""
+    p = _surucu_kur_path()
+    if not p:
+        return False, "surucu-kur.ps1 bulunamadı"
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+             "-File", p, "-Python", sys.executable],
+            timeout=3600)
+    except Exception as e:  # noqa: BLE001
+        return False, "sürücü kurucu çalıştırılamadı: %s" % e
+    return (r.returncode == 0), "sürücü kurucu çıkış kodu %s" % r.returncode
+
+
 def _driver_help():
     """SPI sürücüsünü sağlamak için somut yönlendirme (güncel chipsec gerçeği)."""
     print(D("\n  SPI (BIOS flash) erişimi için chipsec'in kendi çekirdek sürücüsü gerekir"))
@@ -417,7 +443,22 @@ def ensure_chipsec(interactive=True, auto=False, need_spi=True):
     if sb is True:
         return False, ("CHIPSEC var ama SPI sürücüsü yüklenemiyor — Secure Boot AÇIK. "
                        "Kapatın (ya da test imzalama açın) ve yeniden deneyin.")
-    # paket var, Secure Boot kapalı, ama sürücü yok -> yönlendir
+    # paket var, Secure Boot kapalı, ama sürücü yok -> ÖNCE otomatik kurmayı TEKLİF ET
+    # (kullanıcı zaten yönetici; hazır sürücüyü kurup test-imzalar, testsigning açar).
+    if interactive and not ui.JSON and admin() and _surucu_kur_path():
+        print()
+        if ui.confirm_eh(
+                "SPI çekirdek sürücüsü yüklü değil. Hazır sürücüyü ŞİMDİ otomatik "
+                "kurayım mı? (test-imza + testsigning açılır; sonra YENİDEN BAŞLATMA gerekir)",
+                default_no=False):
+            dok, dmsg = run_driver_installer()
+            if dok:
+                return False, ("Sürücü kuruldu ve test imzalama açıldı (" + dmsg + "). "
+                               "Lütfen bilgisayarı YENİDEN BAŞLATIN, ardından tekrar "
+                               "'bios read' çalıştırın.")
+            print(f"  {WARN} {dmsg}")
+            # kurucu başarısız oldu: klasik elle yönlendirmeye düş
+    # yönlendir (otomatik teklif reddedildi ya da kurucu başarısız)
     if interactive and not ui.JSON:
         _driver_help()
     det = (detail or "sürücü yüklenemedi")
