@@ -105,8 +105,11 @@ if (-not $toolsetOk) {
     Write-Host ""
     Yaz "WindowsKernelModeDriver10.0 toolset VS'e entegre degil (WDK VSIX eksik)." "Yellow"
     Yaz "Cozum (birini secin):" "Yellow"
-    Yaz "  * Visual Studio Installer'i acip Degistir > Tekil bilesenler > 'Windows Driver Kit' ekleyin;" "Yellow"
-    Yaz "    ya da WDK'yi (wdksetup.exe) ETKILESIMLI calistirip VSIX kurulumunu onaylayin." "Yellow"
+    Yaz "  * Sessiz ekleme (DOGRULANDI): VS Installer ile WDK BuildTools bilesenini ekleyin:" "Yellow"
+    Yaz '    & "C:\Program Files (x86)\Microsoft Visual Studio\Installer\setup.exe" modify ^' 'Yellow'
+    Yaz ('      --installPath "' + $vsPath + '" ^') 'Yellow'
+    Yaz "      --add Component.Microsoft.Windows.DriverKit.BuildTools --quiet --norestart" "Yellow"
+    Yaz "  * Ya da VS Installer'i acip Degistir > Tekil bilesenler > 'Windows Driver Kit' ekleyin." "Yellow"
     Yaz "  * Alternatif (en guvenilir): EWDK ISO ile derleyin (kendi kendine yeten, kurulum gerekmez):" "Yellow"
     Yaz "    https://learn.microsoft.com/windows-hardware/drivers/download-the-wdk  (Enterprise WDK)" "Yellow"
     Dur "WDK toolset entegrasyonu tamamlanip tekrar calistirin."
@@ -118,7 +121,9 @@ $bat = Join-Path $work "build.cmd"
 @echo off
 call "$vcvars"
 cd /d "$drvSrc"
-msbuild /t:Build /p:Configuration=$Configuration /p:Platform=x64 "$proj"
+@REM SignMode=Off: projenin kendi TestSign adimi eski signtool cagrisiyla patliyor;
+@REM imzalamayi asagida biz /fd SHA256 ile yapiyoruz.
+msbuild /t:Build /p:Configuration=$Configuration /p:Platform=x64 /p:SignMode=Off "$proj"
 "@ | Set-Content -Path $bat -Encoding ascii
 cmd /c "`"$bat`""
 $sys = Get-ChildItem $drvSrc -Recurse -Filter "chipsec_hlpr.sys" -ErrorAction SilentlyContinue |
