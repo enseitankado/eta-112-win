@@ -47,7 +47,7 @@ karşılığıyla değiştirilmiştir:
 | Windows anahtarı **oku** | `/sys/.../MSDM` | `GetSystemFirmwareTable('ACPI','MSDM')` | ✅ sürücüsüz |
 | MAC **oku / doğrula** | sysfs + kural | `GetAdaptersInfo` + kural | ✅ sürücüsüz |
 | Model saptama | `dmidecode` | `GetSystemFirmwareTable('RSMB')` SMBIOS | ✅ sürücüsüz |
-| BIOS parolası **oku** | `flashrom` | CHIPSEC `spi dump` | ✅ sürücü ister; 14MB57'de canlı doğrulandı |
+| BIOS parolası **oku** | `flashrom` | Intel: CHIPSEC `spi dump` · AMD: bellek-haritalı ROM (`read_phys_mem`) | ✅ 14MB57 (Intel) ve 14MB37C1 (AMD) canlı doğrulandı |
 | BIOS parolası **yaz/sil** | `flashrom` | CHIPSEC `disable-wp`+`erase`+`write` | ✅ sürücü ister; 14MB57'de canlı doğrulandı |
 | Windows anahtarı **değiştir** | `flashrom` | CHIPSEC `spi write` | ⚠️ sürücü ister |
 | MAC **değiştir** (eFuse) | `rtnicpg`+`pgdrv.ko` | Realtek Windows PG aracı | ⛔ otomatik değil (vendor aracı) |
@@ -72,11 +72,13 @@ donanım erişim katmanıdır (`eta112win/flash.py` → CHIPSEC + Win32 API).
 | Faz 2 Vestel AMD (Gri) | VESTEL 14MB37C1 | AMD A10-5750M | AMI Aptio L0.30 |
 | Faz 2 Vestel Intel (Gri) | VESTEL 14MB57 | Intel Core i3-4000M | AMI Aptio 4.6.5 |
 
-> **Not (AMD 14MB37C1):** chipsec 1.13 bu eski AMD FCH'yi tanımaz; bu modelde Windows'ta
-> **canlı** SPI okuma/yazma chipsec ile **çalışmaz** (`--pch` hatası). Model saptama,
-> MAC/Windows anahtarı okuma ve çevrimdışı `--dump`/`--out` çalışır; canlı SPI için AMD
-> kartlarda Linux eta-112 (flashrom) kullanın. Intel kartlar (14MB24A, 14MB57) chipsec
-> ile tam çalışır.
+> **Not (AMD 14MB37C1):** chipsec'in yüksek seviye `spi` modülü bu eski AMD FCH'yi
+> tanımaz (`--pch` hatası). Araç bunu aşar: AMD'de SPI flash 4 GiB'ın altına **belleğe
+> haritalıdır** (ROM penceresi) ve chipsec'in genel `read_phys_mem` ilkeliyle doğrudan
+> okunur. Bu yüzden **canlı `bios read` AMD'de çalışır** (gerçek 14MB37C1'de doğrulandı).
+> **Yazma** (`bios set/clear`) AMD'de henüz yok (bellek penceresi salt-okunur; SPI
+> denetleyicisini sürmek gerekir) — AMD'de yazma için `--dump`/`--out` ya da Linux
+> eta-112 (flashrom). Intel kartlar (14MB24A, 14MB57) chipsec ile oku+yaz tam çalışır.
 
 ---
 
@@ -277,10 +279,9 @@ python tests\test_feedback.py
   çalıştırın, sonra yeniden başlatın. Secure Boot kapalı ve test imzalama açık olmalı.
 - **`No module named chipsec_util`** → chipsec kurulu değil. `python eta-112-win.py kontrol`.
 - **`To specify a pch please use --pch` / `correct configuration is not loaded`** →
-  chipsec yonga setini algılayamadı. **VESTEL 14MB37C1 (AMD A10-5750M)** gibi eski AMD
-  FCH'ler chipsec 1.13'te desteklenmez; bu kartta **canlı SPI chipsec ile çalışmaz**.
-  Çözüm: `bios read --dump DOSYA` (çevrimdışı) ya da AMD için Linux eta-112 (flashrom).
-  Intel kartlar (14MB24A, 14MB57) chipsec ile çalışır.
+  chipsec'in `spi` modülü AMD FCH'yi tanımaz. **Okuma** için sorun değil: araç AMD'de
+  flash'ı bellek-haritalı ROM penceresinden okur (`bios read` çalışır). Yalnız **yazma**
+  AMD'de yok; `--dump`/`--out` ya da Linux eta-112 kullanın.
 - **`Copy-Item … başka bir işlem tarafından kullanıldığından … chipsec_hlpr.sys …`** →
   yüklü chipsec sürücüsü dosyayı kilitliyor. `surucu-kur.ps1` artık kopyadan önce
   servisi durdurur; elle: yönetici cmd'de `sc stop chipsec_hlpr` ve `sc delete
