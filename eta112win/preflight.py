@@ -432,6 +432,11 @@ def ensure_chipsec(interactive=True, auto=False, need_spi=True):
     if spi_ok:
         return True, "CHIPSEC SPI hazır (" + detail + ")"
 
+    # 2.0) Yonga seti chipsec tarafından DESTEKLENMİYOR mu (ör. eski AMD FCH)? Bu bir
+    # SÜRÜCÜ sorunu değildir; sürücü kurdurmak/derletmek YANLIŞ olur. Net mesajla dön.
+    if detail and detail.startswith("PLATFORM_DESTEKLENMIYOR:"):
+        return False, detail[len("PLATFORM_DESTEKLENMIYOR:"):].strip()
+
     # 2a) Başarısızlık chipsec_util'in HİÇ çalışmamasından mı (kurulum bozuk/yanlış
     # modül) kaynaklanıyor? Öyleyse bu bir SÜRÜCÜ sorunu değildir — kullanıcıyı
     # derlemeye yönlendirmek yanlış olur; pinli bundle'dan BİR KEZ yeniden kurup

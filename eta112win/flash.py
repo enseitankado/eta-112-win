@@ -160,6 +160,16 @@ def spi_probe():
     if _is_launch_failure(txt):
         return False, ("CHIPSEC_KURULUM_BOZUK: chipsec_util çalıştırılamadı "
                        "(sürücü sorunu DEĞİL): " + (tail or "modül bulunamadı"))
+    low = txt.lower()
+    if ("--pch" in low or "correct configuration is not loaded" in low
+            or "unsupported platform" in low or "could not detect" in low
+            or "unknown platform" in low):
+        # chipsec yonga setini algılayamadı (ör. eski AMD FCH — chipsec 1.13'te config yok).
+        # Bu bir SÜRÜCÜ sorunu DEĞİLDİR; o modelde canlı SPI chipsec ile mümkün değil.
+        return False, ("PLATFORM_DESTEKLENMIYOR: chipsec bu yonga setini otomatik "
+                       "algılayamadı (ör. VESTEL 14MB37C1 / eski AMD FCH). Bu modelde "
+                       "canlı SPI chipsec ile DESTEKLENMİYOR. Çevrimdışı '--dump' ile "
+                       "okuma/dry-run kullanın ya da AMD için Linux eta-112 (flashrom).")
     return False, (tail or "SPI descriptor okunamadı (sürücü yüklenemedi?)")
 
 

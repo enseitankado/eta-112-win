@@ -163,7 +163,24 @@ msbuild /t:Build /p:Configuration=$Configuration /p:Platform=x64 /p:SignMode=Off
 # ---- 4) yerine kopyala ----
 New-Item -ItemType Directory -Force $driverDest | Out-Null
 $destSys = Join-Path $driverDest "chipsec_hlpr.sys"
-Copy-Item $sysPath $destSys -Force
+# Hedef .sys YUKLU chipsec surucu servisi tarafindan kilitlenmis olabilir (onceki
+# 'bios read'/preflight surucuyu yuklemisse). Once durdur/sil, yoksa Copy-Item
+# "baska bir islem tarafindan kullaniliyor" hatasi verir.
+foreach ($svc in @("chipsec_hlpr", "chipsec", "CHIPSEC")) {
+    cmd /c "sc.exe stop $svc" 2>&1 | Out-Null
+    cmd /c "sc.exe delete $svc" 2>&1 | Out-Null
+}
+Start-Sleep -Milliseconds 700
+$kopyalandi = $false
+foreach ($deneme in 1..5) {
+    try { Copy-Item $sysPath $destSys -Force -ErrorAction Stop; $kopyalandi = $true; break }
+    catch { Start-Sleep -Milliseconds 800 }
+}
+if (-not $kopyalandi) {
+    Dur ("Surucu kopyalanamadi (hedef kilitli): $destSys`n" +
+         "  Yuklu chipsec surucusunu bosaltin: yonetici cmd'de 'sc stop chipsec_hlpr' ve " +
+         "'sc delete chipsec_hlpr', chipsec kullanan pencereleri kapatin, tekrar deneyin.")
+}
 Yaz "Surucu kopyalandi: $destSys" "Green"
 
 # ---- 5) test sertifikasi uret + guven + imzala (SDK/signtool GEREKTIRMEZ) ----

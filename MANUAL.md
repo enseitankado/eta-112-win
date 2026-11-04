@@ -72,6 +72,12 @@ donanım erişim katmanıdır (`eta112win/flash.py` → CHIPSEC + Win32 API).
 | Faz 2 Vestel AMD (Gri) | VESTEL 14MB37C1 | AMD A10-5750M | AMI Aptio L0.30 |
 | Faz 2 Vestel Intel (Gri) | VESTEL 14MB57 | Intel Core i3-4000M | AMI Aptio 4.6.5 |
 
+> **Not (AMD 14MB37C1):** chipsec 1.13 bu eski AMD FCH'yi tanımaz; bu modelde Windows'ta
+> **canlı** SPI okuma/yazma chipsec ile **çalışmaz** (`--pch` hatası). Model saptama,
+> MAC/Windows anahtarı okuma ve çevrimdışı `--dump`/`--out` çalışır; canlı SPI için AMD
+> kartlarda Linux eta-112 (flashrom) kullanın. Intel kartlar (14MB24A, 14MB57) chipsec
+> ile tam çalışır.
+
 ---
 
 ## Gereksinimler
@@ -270,6 +276,15 @@ python tests\test_feedback.py
 - **`CHIPSEC Windows Driver Not Found`** → sürücü yok/yüklenemiyor. `tools\surucu-kur.ps1`
   çalıştırın, sonra yeniden başlatın. Secure Boot kapalı ve test imzalama açık olmalı.
 - **`No module named chipsec_util`** → chipsec kurulu değil. `python eta-112-win.py kontrol`.
+- **`To specify a pch please use --pch` / `correct configuration is not loaded`** →
+  chipsec yonga setini algılayamadı. **VESTEL 14MB37C1 (AMD A10-5750M)** gibi eski AMD
+  FCH'ler chipsec 1.13'te desteklenmez; bu kartta **canlı SPI chipsec ile çalışmaz**.
+  Çözüm: `bios read --dump DOSYA` (çevrimdışı) ya da AMD için Linux eta-112 (flashrom).
+  Intel kartlar (14MB24A, 14MB57) chipsec ile çalışır.
+- **`Copy-Item … başka bir işlem tarafından kullanıldığından … chipsec_hlpr.sys …`** →
+  yüklü chipsec sürücüsü dosyayı kilitliyor. `surucu-kur.ps1` artık kopyadan önce
+  servisi durdurur; elle: yönetici cmd'de `sc stop chipsec_hlpr` ve `sc delete
+  chipsec_hlpr`, chipsec kullanan pencereleri kapatıp tekrar deneyin.
 - **Yazma "etkili olmadı"** → [Canlı yazma notları](#canlı-yazma-ve-donanım-notları)na
   bakın (BIOSWE / çip blok-koruma).
 - **"DESTEKLENİYOR" sonrası uzun bekleme** → normaldir; SPI dökümü sürüyor (bkz.
