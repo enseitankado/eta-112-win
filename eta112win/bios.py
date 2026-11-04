@@ -56,14 +56,23 @@ def load_source(prof, dumppath):
     if not ui.is_admin():
         return None, None, "Bu işlem için yönetici (Administrator) gerekli."
     from . import preflight
-    cok, cmsg = preflight.ensure_chipsec(interactive=not ui.JSON)
+    # AMD (region) kartlarda okuma, chipsec SPI modülü yerine chipsec'in GENEL
+    # read_phys_mem ilkeliyle (bellek-haritalı ROM) yapılır; bu yüzden chipsec_util
+    # tabanlı SPI sürücü sınamasını (spi_probe) GEÇİT olarak kullanmayız — yalnız
+    # chipsec paketinin kurulu olmasını isteriz. Sürücü yüklenemezse read_region
+    # (AMD yolu) net hata verir.
+    is_amd = prof.get("flash_mode") == "region"
+    cok, cmsg = preflight.ensure_chipsec(interactive=not ui.JSON, need_spi=not is_amd)
     if not cok:
         return None, None, cmsg
     sess = flash.FlashSession(prof)
     try:
         if not ui.JSON:
-            print(D("  SPI flash okunuyor — tüm çip (~8 MiB) CHIPSEC ile dökülüyor."))
-            print(D("  Bu 10-40 sn sürebilir; program donmadı, lütfen bekleyin..."), flush=True)
+            if is_amd:
+                print(D("  SPI flash okunuyor (AMD FCH, bellek-haritalı ROM)..."), flush=True)
+            else:
+                print(D("  SPI flash okunuyor — tüm çip (~8 MiB) CHIPSEC ile dökülüyor."))
+                print(D("  Bu 10-40 sn sürebilir; program donmadı, lütfen bekleyin..."), flush=True)
         data = sess.read_region()
     except flash.FlashError as e:
         return None, None, str(e)
@@ -245,7 +254,8 @@ def _write_flow(prof, edits, pwcheck=None):
     if not ui.is_admin():
         return {"ok": False, "changed": False, "error": "yönetici gerekli"}
     from . import preflight
-    cok, cmsg = preflight.ensure_chipsec(interactive=not ui.JSON)
+    is_amd = prof.get("flash_mode") == "region"
+    cok, cmsg = preflight.ensure_chipsec(interactive=not ui.JSON, need_spi=not is_amd)
     if not cok:
         return {"ok": False, "changed": False, "error": cmsg}
     sl = prof["slot_len"]

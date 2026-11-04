@@ -177,12 +177,53 @@ class FlashError(Exception):
     pass
 
 
+def _amd_fch_mmap_read(size):
+    """AMD FCH kartlarda SPI flash'ı OKU (yalnız okuma).
+
+    chipsec'in yüksek seviye 'spi' modülü eski AMD FCH'leri (ör. A10-5750M / 14MB37C1)
+    desteklemez ('--pch' hatası). Ama AMD'de SPI flash, 4 GiB'ın hemen altında belleğe
+    haritalıdır (ROM penceresi) ve chipsec'in GENEL, platformdan-bağımsız read_phys_mem
+    ilkeli bu bölgeyi doğrudan okuyabilir. flashrom'un Linux'ta yaptığının Windows +
+    chipsec-sürücüsü karşılığıdır. Döner: tam çip baytları (flash ofseti 0 = data[0])."""
+    try:
+        from chipsec.helper.oshelper import helper as _OSH
+    except Exception as e:  # noqa: BLE001
+        raise FlashError("chipsec helper import edilemedi: %s" % e)
+    try:
+        h = _OSH().helper
+        h.start()
+    except Exception as e:  # noqa: BLE001
+        raise FlashError("chipsec sürücüsü yüklenemedi (yönetici / test imzalama / "
+                         "Secure Boot kapalı olmalı): %s" % e)
+    try:
+        viddid = h.read_pci_reg(0, 0x14, 3, 0x00, 4) & 0xFFFFFFFF
+    except Exception as e:  # noqa: BLE001
+        raise FlashError("PCI config okunamadı: %s" % e)
+    if (viddid & 0xFFFF) != 0x1022:  # 0x1022 = AMD
+        raise FlashError("AMD FCH LPC köprüsü bulunamadı (D14:F3 VID=0x%04X). "
+                         "Bu okuma yöntemi AMD kartlar içindir." % (viddid & 0xFFFF))
+    rom_base = (1 << 32) - size      # ör. 8 MiB -> 0xFF800000
+    data = bytearray()
+    off = 0
+    while off < size:
+        n = min(0x40000, size - off)
+        try:
+            data += bytes(h.read_phys_mem(rom_base + off, n))
+        except Exception as e:  # noqa: BLE001
+            raise FlashError("ROM penceresi okunamadı (0x%X): %s" % (rom_base + off, e))
+        off += n
+    return bytes(data)
+
+
 class FlashSession:
     """Tek bir oku-düzenle-yaz oturumu: tam çip bir kez okunur, BIOS bölgesi dilimlenir."""
 
     def __init__(self, prof):
         self.prof = prof
         self.ifd = prof.get("flash_mode") == "ifd"
+        # AMD (flash_mode "region"): chipsec SPI modülü eski FCH'yi desteklemez;
+        # flash'ı 4 GiB-altı ROM penceresinden read_phys_mem ile okuruz.
+        self.amd = prof.get("flash_mode") == "region"
         self._dump = None          # tam çip baytları
         self._base = None          # BIOS bölgesi tabanı (tam çip içinde)
         self._tmp = None
@@ -190,6 +231,10 @@ class FlashSession:
     # ---- düşük seviye ----
     def _dump_full(self):
         if self._dump is not None:
+            return
+        if self.amd:
+            # AMD FCH: bellek-haritalı okuma (chipsec_util spi dump desteklenmez)
+            self._dump = _amd_fch_mmap_read(self.prof.get("rom_size", 0x800000))
             return
         fd, path = tempfile.mkstemp(prefix="eta112win_", suffix=".bin")
         os.close(fd)
@@ -243,6 +288,11 @@ class FlashSession:
     def _flush(self, new_region, enforce_banks):
         """Değişen 4 KiB sektörleri flash'a yaz, sonra geri-oku ile doğrula.
         Döner (ok: bool, mesaj: str)."""
+        if self.amd:
+            # AMD FCH: bellek-haritalı pencere salt-okunurdur; yazma SPI denetleyicisini
+            # (erase/write FIFO) sürmeyi gerektirir — henüz uygulanmadı.
+            return (False, "AMD kartta canlı YAZMA henüz desteklenmiyor (yalnız OKUMA). "
+                           "Yazma için çevrimdışı '--dump/--out' ya da Linux eta-112 (flashrom).")
         cur = self.read_region()
         if len(new_region) != len(cur):
             return False, "iç hata: bölge boyutu değişti"
