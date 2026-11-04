@@ -15,6 +15,15 @@ from .ui import D, G, Y, OK, WARN
 
 NTFY_TOPIC = "eta-112"
 
+# Çıkışta gösterilen, geliştiriciyi motive edici mesaj. Son satırla e/h sorusu
+# arasına bir boş satır konur (aşağıda exit_feedback).
+_MOTIVASYON = [
+    "Bu araç meşakkatli bir emeğin ürünüdür: Faz 1, Faz 2 Intel ve Faz 2 AMD",
+    "tahtalarında defalarca donanım EEPROM sökülüp lehimlendi ve uzun bir",
+    "tersine mühendislik çalışması yürütüldü. Küçük bir teşekkür, tavsiye ya",
+    "da uyarı bile geliştiriciyi motive eder.",
+]
+
 
 def send_ntfy(message, topic=NTFY_TOPIC, timeout=15):
     """Mesajı ntfy.sh/<topic>'e POST eder. Döner (ok: bool, bilgi: str)."""
@@ -55,9 +64,13 @@ def exit_feedback():
     except Exception:  # noqa: BLE001
         return
     try:
+        print()
+        for _ln in _MOTIVASYON:
+            print(D("  " + _ln))
+        print()   # motive edici metnin son satırı ile e/h sorusu arasında boş satır
         if not ui.confirm_eh(
-                "Çıkmadan önce geliştirici Özgür Koca'ya (ozgurkoca.com) geri bildirim "
-                "göndermek ister misiniz?", default_no=True):
+                "Geliştirici Özgür Koca'ya (ozgurkoca.com) bir mesaj bırakmak ister misiniz?",
+                default_no=True):
             return
         print(D("  Mesajınız (tek satır). Boş bırakıp Enter'a basarsanız vazgeçilir."))
         try:

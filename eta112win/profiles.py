@@ -25,8 +25,12 @@ PROFILES = {
         "active_store_end": 0x220000,
         "banks": [(0x200000, 0x210000), (0x210000, 0x220000)],
         "mac_ouis": {"00:09:DF": "Vestel Elektronik"},
-        "verified": "Linux tarafında (eta-112) 2026-06-24 uçtan uca doğrulandı; "
-                    "Windows portunda donanım testi YAPILMADI.",
+        # Windows portu Faz 2 (Intel 14MB57 + AMD 14MB37C1) için geliştirildi/doğrulandı.
+        # Bu Faz 1 modeli, doğrulanmış 14MB57 ile AYNI Intel IFD okuma mekanizmasını
+        # kullanır; okuma çalışması beklenir ama Windows DONANIMINDA sınanmadı.
+        "win_verified": False,
+        "verified": "Linux tarafında (eta-112) uçtan uca doğrulandı; Windows portunda "
+                    "bu Faz 1 model donanımda SINANMADI (14MB57 ile aynı mekanizma).",
     },
     ("14MB37C1", "L0.30"): {
         "model_name": "Faz 2 Vestel AMD (Gri)",
@@ -40,8 +44,10 @@ PROFILES = {
         "active_store_end": 0x20000,
         "banks": [(0x0, 0x20000), (0x30000, 0x50000)],
         "mac_ouis": {"00:09:DF": "Vestel Elektronik"},
-        "verified": "Linux tarafında (eta-112) 2026-06-19 doğrulandı; "
-                    "Windows portunda donanım testi YAPILMADI.",
+        "rom_size": 0x800000,   # 8 MiB (W25Q64) — AMD bellek-haritalı okuma için
+        "win_verified": True,
+        "verified": "Linux + Windows (14MB37C1 / AMD FCH, bellek-haritalı ROM okuma) "
+                    "gerçek donanımda doğrulandı.",
     },
     ("14MB57", "4.6.5"): {
         "model_name": "Faz 2 Vestel Intel (Gri)",
@@ -56,8 +62,9 @@ PROFILES = {
         "active_store_end": 0x440000,
         "banks": [(0x400000, 0x420000), (0x420000, 0x440000)],
         "mac_ouis": {"00:09:DF": "Vestel Elektronik"},
-        "verified": "Linux tarafında (eta-112) 2026-06-22 doğrulandı; "
-                    "Windows portunda donanım testi YAPILMADI.",
+        "win_verified": True,
+        "verified": "Linux + Windows (14MB57) gerçek donanımda doğrulandı "
+                    "(okuma ve yazma).",
     },
 }
 

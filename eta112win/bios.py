@@ -37,6 +37,11 @@ def need_profile():
     print(f"  BIOS : {d.get('bios_vendor', '?')} sürüm {Cy(d.get('bios_version', '?'))}")
     if prof:
         print(f"  Durum: {OK} {G('DESTEKLENİYOR')}  {D('(' + prof['label'] + ')')}")
+        # Windows portu Faz 2 (Intel 14MB57 + AMD 14MB37C1) için geliştirildi/doğrulandı.
+        if not prof.get("win_verified"):
+            print(f"  {WARN} {Y('Windows portu Faz 2 (Intel+AMD) için geliştirildi;')}")
+            print(D("         bu model Windows DONANIMINDA sınanmadı — doğrulanmış bir"))
+            print(D("         modelle aynı mekanizmayı kullanır, önce '--dump' ile deneyin."))
     else:
         same = [k for k in PROFILES if k[0] == d.get("board")]
         if same:

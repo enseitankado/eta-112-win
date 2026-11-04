@@ -40,11 +40,16 @@ Tüm komutlar, kurulum ayrıntıları, sürücü ve sorun giderme için **[MANUA
 
 ## Desteklenen tahtalar
 
-| Model | Anakart | BIOS |
-|---|---|---|
-| Faz 1 Vestel Intel | VESTEL 14MB24A | AMI Aptio 4.6.5 |
-| Faz 2 Vestel AMD | VESTEL 14MB37C1 | AMI Aptio L0.30 |
-| Faz 2 Vestel Intel | VESTEL 14MB57 | AMI Aptio 4.6.5 |
+| Model | Anakart | BIOS | Windows'ta |
+|---|---|---|---|
+| Faz 1 Vestel Intel | VESTEL 14MB24A | AMI Aptio 4.6.5 | ⚠️ donanımda sınanmadı |
+| Faz 2 Vestel AMD | VESTEL 14MB37C1 | AMI Aptio L0.30 | ✅ okuma doğrulandı |
+| Faz 2 Vestel Intel | VESTEL 14MB57 | AMI Aptio 4.6.5 | ✅ okuma + yazma doğrulandı |
+
+> **Windows portu Faz 2 (Intel + AMD) tahtalar için geliştirildi ve gerçek donanımda
+> doğrulandı.** Faz 1 Intel (14MB24A), doğrulanmış 14MB57 ile aynı Intel mekanizmasını
+> kullanır (çalışması beklenir) ama Windows donanımında sınanmadı; araç bu modelde
+> çalışırken uyarı verir.
 
 ## Lisans
 
