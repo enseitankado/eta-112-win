@@ -51,6 +51,13 @@ Tüm komutlar, kurulum ayrıntıları, sürücü ve sorun giderme için **[MANUA
 > kullanır (çalışması beklenir) ama Windows donanımında sınanmadı; araç bu modelde
 > çalışırken uyarı verir.
 
+## Bir ricam
+
+Küçük bir ricam var: araç işinizi gördüyse GitHub'da yıldız bırakın. Yıldız
+sayısının bana bir getirisi yok ama aynı sorunu yaşayan başka birinin depoyu
+bulmasını kolaylaştırıyor. Bir de, açıkçası, onca saatin birilerinin işine
+yaradığını görmek güzel oluyor.
+
 ## Lisans
 
 Geliştirici **Özgür Koca** ([ozgurkoca.com](https://ozgurkoca.com)) ·
